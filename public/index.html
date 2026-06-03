@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>大乐透/双色球智能选号助手</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero__text">
+          <p class="eyebrow">18+ 理性使用</p>
+          <h1 id="page-title">大乐透/双色球智能选号助手</h1>
+          <p class="hero__copy">
+            提供号码生成、历史数据参考与组合解释。仅供娱乐参考，不销售彩票，不代购，不出票。
+          </p>
+        </div>
+        <div class="notice-strip" id="required-notices"></div>
+      </section>
+
+      <section class="tool-grid" aria-label="选号工具">
+        <div class="panel generator-panel">
+          <div class="section-heading">
+            <span>选号</span>
+            <strong id="remaining-count">今日剩余 3 组</strong>
+          </div>
+
+          <div class="segmented" role="group" aria-label="选择彩种">
+            <button class="segment is-active" data-type="ssq" type="button">双色球</button>
+            <button class="segment" data-type="dlt" type="button">大乐透</button>
+          </div>
+
+          <label class="field">
+            <span>生成模式</span>
+            <select id="strategy-select">
+              <option value="balanced">均衡生成</option>
+              <option value="random">随机生成</option>
+              <option value="data">数据参考</option>
+            </select>
+          </label>
+
+          <button class="primary-action" id="generate-button" type="button">生成号码</button>
+
+          <div class="ticket-card" id="ticket-card" aria-live="polite">
+            <p class="muted">选择彩种和模式后，点击生成号码。</p>
+          </div>
+
+          <div class="unlock-panel" id="unlock-panel" hidden>
+            <p>今日免费次数已用完。观看一次模拟广告可解锁 3 组生成次数。</p>
+            <button class="secondary-action" id="ad-unlock-button" type="button">模拟观看广告</button>
+          </div>
+        </div>
+
+        <div class="panel analysis-panel">
+          <div class="section-heading">
+            <span>开奖数据</span>
+            <strong id="latest-issue">以官方公告为准</strong>
+          </div>
+          <div id="latest-draw" class="latest-draw"></div>
+          <div id="analysis-summary" class="analysis-summary"></div>
+          <p class="fine-print">开奖数据来自公开渠道整理，实际结果以官方公告为准。</p>
+        </div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="section-heading">
+          <span>生成记录</span>
+          <strong id="history-count">0 组</strong>
+        </div>
+        <div id="history-list" class="history-list">
+          <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
+        </div>
+      </section>
+
+      <section class="panel appreciation-panel">
+        <div class="section-heading">
+          <span>赞赏支持</span>
+          <strong>自愿</strong>
+        </div>
+        <p id="appreciation-notice"></p>
+        <button class="ghost-action" id="appreciation-button" type="button">记录一次模拟赞赏</button>
+        <p class="fine-print">MVP 不接真实支付。赞赏不增加生成次数，不解锁高级策略，不改变号码结果。</p>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
