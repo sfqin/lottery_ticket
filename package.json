@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "import:dlt": "node scripts/import-dlt-history.mjs",
     "import:ssq": "node scripts/import-ssq-history.mjs",
     "dev": "node server.mjs",
     "start": "node server.mjs"
