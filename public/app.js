@@ -10,6 +10,7 @@ import {
 import { formatTicket, getLotteryType } from "/src/lotteryCatalog.mjs";
 import { generateTicket } from "/src/numberGenerator.mjs";
 import { SAMPLE_DRAWS } from "/src/sampleDraws.mjs";
+import { parseSsqCsv } from "/src/ssqHistory.mjs";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
@@ -17,6 +18,8 @@ const state = {
   strategy: "balanced",
   entitlement: loadEntitlement(),
   history: loadHistory(),
+  draws: SAMPLE_DRAWS,
+  dataNotice: "正在加载历史开奖数据...",
 };
 
 const elements = {
@@ -67,7 +70,7 @@ function initialize() {
     const result = generateTicket({
       typeId: state.typeId,
       strategy: state.strategy,
-      draws: SAMPLE_DRAWS.filter((draw) => draw.type === state.typeId),
+      draws: state.draws.filter((draw) => draw.type === state.typeId),
     });
 
     state.history.unshift({
@@ -96,6 +99,25 @@ function initialize() {
   });
 
   render();
+  loadHistoricalDraws();
+}
+
+async function loadHistoricalDraws() {
+  try {
+    const response = await fetch("/data/ssq-history.csv", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`CSV request failed: ${response.status}`);
+    }
+
+    const ssqDraws = parseSsqCsv(await response.text());
+    state.draws = [...ssqDraws, ...SAMPLE_DRAWS.filter((draw) => draw.type !== "ssq")];
+    state.dataNotice = `已加载 ${ssqDraws.length} 期双色球历史数据。`;
+  } catch (error) {
+    state.draws = SAMPLE_DRAWS;
+    state.dataNotice = "历史数据加载失败，当前使用样例数据。";
+    console.warn(error);
+  }
+  render();
 }
 
 function render(latestGenerated = null) {
@@ -121,7 +143,7 @@ function render(latestGenerated = null) {
 }
 
 function renderAnalysis() {
-  const analysis = analyzeDraws(SAMPLE_DRAWS, state.typeId);
+  const analysis = analyzeDraws(state.draws, state.typeId);
   const latest = analysis.latest;
   const type = getLotteryType(state.typeId);
 
@@ -130,6 +152,7 @@ function renderAnalysis() {
     ? `
       <strong>${escapeHtml(type.name)} ${escapeHtml(latest.date)}</strong>
       ${renderBalls(formatTicket(state.typeId, latest), type)}
+      <p class="fine-print">${escapeHtml(state.typeId === "ssq" ? state.dataNotice : "大乐透当前仍使用样例数据。")}</p>
     `
     : `<p class="muted">暂无开奖数据。</p>`;
 
