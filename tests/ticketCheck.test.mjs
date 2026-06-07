@@ -2,8 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  checkTicketLinesByIssue,
   checkTicketByIssue,
   isSupportedTicketScanType,
+  parseTicketLines,
   parseTicketNumbers,
 } from "../src/ticketCheck.mjs";
 
@@ -49,6 +51,38 @@ describe("ticket check", () => {
     );
   });
 
+  it("parses multi-line ticket text into separate stakes", () => {
+    assert.deepEqual(parseTicketLines("ssq", "08 13 17 21 24 29 + 03"), [
+      { red: [8, 13, 17, 21, 24, 29], blue: [3] },
+    ]);
+
+    assert.deepEqual(parseTicketLines("dlt", "02 08 13 21 30 + 04 11"), [
+      { front: [2, 8, 13, 21, 30], back: [4, 11] },
+    ]);
+
+    assert.deepEqual(
+      parseTicketLines(
+        "ssq",
+        "1) 08 13 17 21 24 29 + 03\n2) 01 02 03 04 05 06 + 16",
+      ),
+      [
+        { red: [8, 13, 17, 21, 24, 29], blue: [3] },
+        { red: [1, 2, 3, 4, 5, 6], blue: [16] },
+      ],
+    );
+
+    assert.deepEqual(
+      parseTicketLines(
+        "dlt",
+        "A. 02 08 13 21 30 + 04 11\nB. 01 03 05 07 09 + 01 12",
+      ),
+      [
+        { front: [2, 8, 13, 21, 30], back: [4, 11] },
+        { front: [1, 3, 5, 7, 9], back: [1, 12] },
+      ],
+    );
+  });
+
   it("checks a supported ticket against its issue and returns prize evaluation", () => {
     const result = checkTicketByIssue({
       typeId: "ssq",
@@ -61,6 +95,23 @@ describe("ticket check", () => {
     assert.equal(result.evaluation.tierName, "一等奖");
     assert.match(result.summary, /命中一等奖/);
     assert.match(result.complianceNote, /不提供奖金领取/);
+  });
+
+  it("checks every parsed stake and marks matched numbers for highlighting", () => {
+    const result = checkTicketLinesByIssue({
+      typeId: "ssq",
+      issue: "2026063",
+      ticketText: "1) 08 13 17 21 24 29 + 03\n2) 01 02 04 05 06 07 + 16",
+      draws,
+    });
+
+    assert.equal(result.found, true);
+    assert.equal(result.lines.length, 2);
+    assert.equal(result.lines[0].evaluation.tierName, "一等奖");
+    assert.deepEqual(result.lines[0].matchedNumbers.red, [8, 13, 17, 21, 24, 29]);
+    assert.deepEqual(result.lines[0].matchedNumbers.blue, [3]);
+    assert.equal(result.lines[1].evaluation.hit, false);
+    assert.deepEqual(result.lines[1].matchedNumbers.red, []);
   });
 
   it("reports missing issues without evaluating the ticket", () => {

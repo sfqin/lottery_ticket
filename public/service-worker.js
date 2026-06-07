@@ -1,24 +1,26 @@
-const CACHE_NAME = "lottery-h5-v2";
+const CACHE_NAME = "lottery-h5-v9";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
   "./",
-  "styles.css",
-  "app.js",
+  "styles.css?v=20260607-bottom-polish",
+  "app.js?v=20260607-bottom-polish",
   "manifest.webmanifest",
   "icon.svg",
-  "src/compliance.mjs",
-  "src/drawAnalysis.mjs",
-  "src/dltHistory.mjs",
-  "src/entitlements.mjs",
-  "src/lotteryCatalog.mjs",
-  "src/numberGenerator.mjs",
-  "src/prizeRules.mjs",
-  "src/recommendationTheory.mjs",
-  "src/sampleDraws.mjs",
-  "src/simulationTracker.mjs",
-  "src/ssqHistory.mjs",
-  "src/ticketCheck.mjs",
+  "zanshang.png",
+  "zhifubaozanshang.png",
+  "src/compliance.mjs?v=20260607-bottom-polish",
+  "src/drawAnalysis.mjs?v=20260607-bottom-polish",
+  "src/dltHistory.mjs?v=20260607-bottom-polish",
+  "src/entitlements.mjs?v=20260607-bottom-polish",
+  "src/lotteryCatalog.mjs?v=20260607-bottom-polish",
+  "src/numberGenerator.mjs?v=20260607-bottom-polish",
+  "src/prizeRules.mjs?v=20260607-bottom-polish",
+  "src/recommendationTheory.mjs?v=20260607-bottom-polish",
+  "src/sampleDraws.mjs?v=20260607-bottom-polish",
+  "src/simulationTracker.mjs?v=20260607-bottom-polish",
+  "src/ssqHistory.mjs?v=20260607-bottom-polish",
+  "src/ticketCheck.mjs?v=20260607-bottom-polish",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {

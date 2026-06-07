@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { evaluateTicketAgainstDraw, getPrizeTiers } from "../src/prizeRules.mjs";
+import { evaluateTicketAgainstDraw, getPrizeTiers, getPrizeRuleSummary } from "../src/prizeRules.mjs";
 
 const ssqDraw = {
   type: "ssq",
@@ -26,6 +26,7 @@ describe("official prize rules", () => {
     assert.equal(tiers.length, 6);
     assert.equal(tiers[0].name, "一等奖");
     assert.equal(tiers.at(-1).name, "六等奖");
+    assert.equal(tiers.at(-1).prize, "5元");
   });
 
   it("evaluates double color ball first, second, sixth, and no prize cases", () => {
@@ -53,6 +54,16 @@ describe("official prize rules", () => {
     assert.equal(tiers.length, 7);
     assert.equal(tiers[0].name, "一等奖");
     assert.equal(tiers.at(-1).name, "七等奖");
+    assert.equal(tiers.at(-1).prize, "5元");
+  });
+
+  it("summarizes prize rules and prize labels for display", () => {
+    const ssqRules = getPrizeRuleSummary("ssq");
+    const dltRules = getPrizeRuleSummary("dlt");
+
+    assert.match(ssqRules.note, /浮动奖金以官方当期开奖公告为准/);
+    assert.match(ssqRules.rows.find((row) => row.name === "六等奖").conditionText, /蓝球1个/);
+    assert.equal(dltRules.rows.find((row) => row.name === "七等奖").prize, "5元");
   });
 
   it("evaluates super lotto first, third, seventh, and no prize cases", () => {

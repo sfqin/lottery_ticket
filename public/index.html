@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260607-bottom-polish" />
   </head>
   <body>
     <main class="shell">
@@ -26,8 +26,61 @@
         <div class="notice-strip" id="required-notices"></div>
       </section>
 
-      <section class="tool-grid" aria-label="选号工具">
-        <div class="panel generator-panel">
+      <section class="workspace-grid" aria-label="核心工具">
+        <section class="panel ticket-check-panel" aria-label="拍照验票辅助">
+          <div class="section-heading">
+            <span>拍照验票</span>
+            <strong>仅双色球 / 大乐透</strong>
+          </div>
+
+          <p class="fine-print">
+            可调起手机相机拍摄票面，照片仅在本机预览，不上传。请按票面确认期号和号码，查询结果以官方公告和实体票为准。
+          </p>
+
+          <div class="segmented" role="group" aria-label="选择验票彩种">
+            <button class="segment is-active" data-check-type="ssq" type="button">双色球</button>
+            <button class="segment" data-check-type="dlt" type="button">大乐透</button>
+          </div>
+
+          <label class="camera-picker">
+            <input id="ticket-photo-input" type="file" accept="image/*" capture="environment" />
+            <span>拍照或选择彩票照片</span>
+          </label>
+
+          <div class="photo-preview" id="ticket-photo-preview">
+            <p class="muted">尚未选择票面照片。</p>
+          </div>
+
+          <div class="check-form">
+            <label class="field">
+              <span>期号</span>
+              <input id="ticket-issue-input" inputmode="numeric" placeholder="如 2026063" />
+            </label>
+
+            <div class="check-fields" id="ticket-check-fields"></div>
+
+            <label class="field">
+              <span>多注号码</span>
+              <textarea
+                id="ticket-lines-input"
+                rows="4"
+                placeholder="每行一注，如：08 13 17 21 24 29 + 03"
+              ></textarea>
+            </label>
+
+            <button class="secondary-action check-action" id="check-ticket-button" type="button">
+              查询是否命中奖级
+            </button>
+          </div>
+
+          <div class="check-result" id="ticket-check-result" aria-live="polite">
+            <p class="muted">选择彩种并填写期号、号码后，可查询对应期开奖与奖级。</p>
+          </div>
+
+          <div class="prize-rules" id="prize-rules"></div>
+        </section>
+
+        <section class="panel generator-panel">
           <div class="section-heading">
             <span>选号</span>
             <strong id="remaining-count">不限次数</strong>
@@ -48,89 +101,85 @@
             </select>
           </label>
 
+          <label class="field">
+            <span>生成组数</span>
+            <select id="generate-count-select">
+              <option value="1">1 组</option>
+              <option value="3">3 组</option>
+              <option value="5" selected>5 组</option>
+              <option value="10">10 组</option>
+            </select>
+          </label>
+
           <button class="primary-action" id="generate-button" type="button">生成号码</button>
 
           <div class="ticket-card" id="ticket-card" aria-live="polite">
             <p class="muted">选择彩种和模式后，点击生成号码。</p>
           </div>
 
-        </div>
+        </section>
 
-        <div class="panel analysis-panel">
+        <section class="panel analysis-panel">
           <div class="section-heading">
             <span>开奖数据</span>
             <strong id="latest-issue">以官方公告为准</strong>
           </div>
           <div id="latest-draw" class="latest-draw"></div>
           <div id="analysis-summary" class="analysis-summary"></div>
+          <div class="redeemable-draws">
+            <div class="subsection-heading">
+              <b>可兑奖期数</b>
+              <span>兑奖有效期 60 个自然日</span>
+            </div>
+            <div id="redeemable-draw-list"></div>
+          </div>
           <p class="fine-print">开奖数据来自公开渠道整理，实际结果以官方公告为准。</p>
-        </div>
+        </section>
       </section>
 
-      <section class="panel ticket-check-panel" aria-label="拍照验票辅助">
-        <div class="section-heading">
-          <span>拍照验票</span>
-          <strong>仅双色球 / 大乐透</strong>
-        </div>
+      <section class="support-dock" aria-label="往期分析和赞赏">
+        <section class="panel history-panel">
+          <div class="section-heading">
+            <span>往期分析</span>
+            <strong id="history-count">0 组</strong>
+          </div>
+          <div id="history-list" class="history-list">
+            <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
+          </div>
+          <p class="fine-print">记录仅保存在本机浏览器，仅供数据分析，不构成中奖预测。</p>
+        </section>
 
-        <p class="fine-print">
-          可调起手机相机拍摄票面，照片仅在本机预览，不上传。请按票面确认期号和号码，查询结果以官方公告和实体票为准。
-        </p>
-
-        <div class="segmented" role="group" aria-label="选择验票彩种">
-          <button class="segment is-active" data-check-type="ssq" type="button">双色球</button>
-          <button class="segment" data-check-type="dlt" type="button">大乐透</button>
-        </div>
-
-        <label class="camera-picker">
-          <input id="ticket-photo-input" type="file" accept="image/*" capture="environment" />
-          <span>拍照或选择彩票照片</span>
-        </label>
-
-        <div class="photo-preview" id="ticket-photo-preview">
-          <p class="muted">尚未选择票面照片。</p>
-        </div>
-
-        <div class="check-form">
-          <label class="field">
-            <span>期号</span>
-            <input id="ticket-issue-input" inputmode="numeric" placeholder="如 2026063" />
-          </label>
-
-          <div class="check-fields" id="ticket-check-fields"></div>
-
-          <button class="secondary-action check-action" id="check-ticket-button" type="button">
-            查询是否命中奖级
-          </button>
-        </div>
-
-        <div class="check-result" id="ticket-check-result" aria-live="polite">
-          <p class="muted">选择彩种并填写期号、号码后，可查询对应期开奖与奖级。</p>
-        </div>
-      </section>
-
-      <section class="panel history-panel">
-        <div class="section-heading">
-          <span>生成记录</span>
-          <strong id="history-count">0 组</strong>
-        </div>
-        <div id="history-list" class="history-list">
-          <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
-        </div>
-        <p class="fine-print">记录仅保存在本机浏览器，仅供数据分析，不构成中奖预测。</p>
-      </section>
-
-      <section class="panel appreciation-panel">
-        <div class="section-heading">
-          <span>赞赏支持</span>
-          <strong>自愿</strong>
-        </div>
-        <p id="appreciation-notice"></p>
-        <button class="ghost-action" id="appreciation-button" type="button">记录一次模拟赞赏</button>
-        <p class="fine-print">MVP 不接真实支付。赞赏不增加生成次数，不解锁高级策略，不改变号码结果。</p>
+        <section class="panel appreciation-panel">
+          <div class="section-heading">
+            <span>赞赏支持</span>
+            <strong>自愿</strong>
+          </div>
+          <p id="appreciation-notice" class="appreciation-copy"></p>
+          <div class="appreciation-methods" role="group" aria-label="选择赞赏方式">
+            <button class="appreciation-method is-active" data-appreciation-method="wechat" type="button">微信</button>
+            <button class="appreciation-method" data-appreciation-method="alipay" type="button">支付宝</button>
+          </div>
+          <div class="appreciation-codes">
+            <figure class="appreciation-code appreciation-code--primary is-active" data-appreciation-code="wechat">
+              <img src="zanshang.png" alt="自愿赞赏二维码，谢谢各位支持" />
+              <figcaption>
+                <b>赞赏码</b>
+                <span>微信扫码支持</span>
+              </figcaption>
+            </figure>
+            <figure class="appreciation-code" data-appreciation-code="alipay">
+              <img src="zhifubaozanshang.png" alt="支付宝自愿赞赏二维码" />
+              <figcaption>
+                <b>支付宝赞赏</b>
+                <span>支付宝扫码支持</span>
+              </figcaption>
+            </figure>
+          </div>
+          <p class="fine-print">赞赏完全自愿。赞赏不增加生成次数，不解锁高级策略，不改变号码结果。</p>
+        </section>
       </section>
     </main>
 
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=20260607-bottom-polish"></script>
   </body>
 </html>
