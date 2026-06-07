@@ -1,17 +1,14 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "/src/compliance.mjs";
-import { analyzeDraws } from "/src/drawAnalysis.mjs";
-import {
-  createEntitlementState,
-  getRemainingGenerations,
-  recordAdUnlock,
-  recordAppreciation,
-  useGeneration,
-} from "/src/entitlements.mjs";
-import { formatTicket, getLotteryType } from "/src/lotteryCatalog.mjs";
-import { generateTicket } from "/src/numberGenerator.mjs";
-import { SAMPLE_DRAWS } from "/src/sampleDraws.mjs";
-import { parseDltCsv } from "/src/dltHistory.mjs";
-import { parseSsqCsv } from "/src/ssqHistory.mjs";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs";
+import { createEntitlementState, recordAppreciation } from "./src/entitlements.mjs";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs";
+import { generateTicket } from "./src/numberGenerator.mjs";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs";
+import { parseDltCsv } from "./src/dltHistory.mjs";
+import { parseSsqCsv } from "./src/ssqHistory.mjs";
+import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs";
+import { checkTicketByIssue, parseTicketNumbers } from "./src/ticketCheck.mjs";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
@@ -19,6 +16,13 @@ const state = {
   strategy: "balanced",
   entitlement: loadEntitlement(),
   history: loadHistory(),
+  checkTypeId: "ssq",
+  checkImageUrl: "",
+  checkValues: {
+    ssq: {},
+    dlt: {},
+  },
+  checkResult: null,
   draws: SAMPLE_DRAWS,
   dataNotice: {
     dlt: "正在加载大乐透历史开奖数据...",
@@ -33,13 +37,18 @@ const elements = {
   strategy: document.querySelector("#strategy-select"),
   generate: document.querySelector("#generate-button"),
   ticket: document.querySelector("#ticket-card"),
-  unlock: document.querySelector("#unlock-panel"),
-  adUnlock: document.querySelector("#ad-unlock-button"),
   latestIssue: document.querySelector("#latest-issue"),
   latestDraw: document.querySelector("#latest-draw"),
   analysis: document.querySelector("#analysis-summary"),
   historyCount: document.querySelector("#history-count"),
   history: document.querySelector("#history-list"),
+  checkTypeButtons: [...document.querySelectorAll("[data-check-type]")],
+  checkPhoto: document.querySelector("#ticket-photo-input"),
+  checkPreview: document.querySelector("#ticket-photo-preview"),
+  checkIssue: document.querySelector("#ticket-issue-input"),
+  checkFields: document.querySelector("#ticket-check-fields"),
+  checkButton: document.querySelector("#check-ticket-button"),
+  checkResult: document.querySelector("#ticket-check-result"),
   appreciationNotice: document.querySelector("#appreciation-notice"),
   appreciation: document.querySelector("#appreciation-button"),
 };
@@ -47,6 +56,7 @@ const elements = {
 initialize();
 
 function initialize() {
+  registerServiceWorker();
   elements.notices.innerHTML = REQUIRED_NOTICES.map((notice) => `<span>${escapeHtml(notice)}</span>`).join("");
   elements.appreciationNotice.textContent = APPRECIATION_NOTICE;
 
@@ -61,35 +71,82 @@ function initialize() {
     state.strategy = elements.strategy.value;
   });
 
-  elements.generate.addEventListener("click", () => {
-    const attempt = useGeneration(state.entitlement, today);
-    state.entitlement = attempt.state;
+  elements.checkTypeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.checkTypeId = button.dataset.checkType;
+      state.checkResult = null;
+      renderTicketCheck();
+    });
+  });
 
-    if (!attempt.allowed) {
-      persist();
-      render();
-      return;
+  elements.checkPhoto.addEventListener("change", () => {
+    const file = elements.checkPhoto.files?.[0];
+    if (state.checkImageUrl) {
+      URL.revokeObjectURL(state.checkImageUrl);
+      state.checkImageUrl = "";
     }
 
+    if (file) {
+      state.checkImageUrl = URL.createObjectURL(file);
+    }
+
+    renderTicketCheck();
+  });
+
+  elements.checkFields.addEventListener("input", (event) => {
+    const groupName = event.target.dataset.checkGroup;
+    if (groupName) {
+      state.checkValues[state.checkTypeId][groupName] = event.target.value;
+    }
+  });
+
+  elements.generate.addEventListener("click", () => {
+    const typeDraws = state.draws.filter((draw) => draw.type === state.typeId);
     const result = generateTicket({
       typeId: state.typeId,
       strategy: state.strategy,
-      draws: state.draws.filter((draw) => draw.type === state.typeId),
+      draws: typeDraws,
     });
-
-    state.history.unshift({
+    const latestDraw = getLatestDraw(state.draws, state.typeId);
+    const simulation = latestDraw
+      ? createSimulationRecord({ recommendation: result, draw: latestDraw })
+      : null;
+    const savedResult = {
       ...result,
+      simulation,
       createdAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-    });
+    };
+
+    state.history.unshift(savedResult);
     state.history = state.history.slice(0, 12);
     persist();
-    render(result);
+    render(savedResult);
   });
 
-  elements.adUnlock.addEventListener("click", () => {
-    state.entitlement = recordAdUnlock(state.entitlement, today, 3);
-    persist();
-    render();
+  elements.checkButton.addEventListener("click", () => {
+    try {
+      const type = getLotteryType(state.checkTypeId);
+      const values = {};
+      for (const groupName of Object.keys(type.groups)) {
+        values[groupName] = document.querySelector(`[data-check-group="${groupName}"]`)?.value ?? "";
+      }
+      state.checkValues[state.checkTypeId] = values;
+
+      state.checkResult = checkTicketByIssue({
+        typeId: state.checkTypeId,
+        issue: elements.checkIssue.value,
+        ticket: parseTicketNumbers(state.checkTypeId, values),
+        draws: state.draws,
+      });
+    } catch (error) {
+      state.checkResult = {
+        error: true,
+        summary: error.message,
+        complianceNote: "查询结果仅供参考，实际开奖与实体票信息以官方公告为准。",
+      };
+    }
+
+    renderTicketCheck();
   });
 
   elements.appreciation.addEventListener("click", () => {
@@ -111,7 +168,7 @@ async function loadHistoricalDraws() {
   const fallbackDraws = [];
 
   try {
-    const ssqDraws = await loadCsvDraws("/data/ssq-history.csv", parseSsqCsv);
+    const ssqDraws = await loadCsvDraws("data/ssq-history.csv", parseSsqCsv);
     loadedDraws.push(...ssqDraws);
     state.dataNotice.ssq = `已加载 ${ssqDraws.length} 期双色球历史数据。`;
   } catch (error) {
@@ -121,7 +178,7 @@ async function loadHistoricalDraws() {
   }
 
   try {
-    const dltDraws = await loadCsvDraws("/data/dlt-history.csv", parseDltCsv);
+    const dltDraws = await loadCsvDraws("data/dlt-history.csv", parseDltCsv);
     loadedDraws.push(...dltDraws);
     state.dataNotice.dlt = `已加载 ${dltDraws.length} 期大乐透历史数据。`;
   } catch (error) {
@@ -143,10 +200,8 @@ async function loadCsvDraws(path, parser) {
 }
 
 function render(latestGenerated = null) {
-  const remaining = getRemainingGenerations(state.entitlement, today);
-  elements.remaining.textContent = `今日剩余 ${remaining} 组`;
-  elements.generate.disabled = remaining === 0;
-  elements.unlock.hidden = remaining > 0;
+  elements.remaining.textContent = "不限次数";
+  elements.generate.disabled = false;
 
   elements.typeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.type === state.typeId);
@@ -154,6 +209,7 @@ function render(latestGenerated = null) {
 
   renderAnalysis();
   renderHistory();
+  renderTicketCheck();
 
   if (latestGenerated) {
     elements.ticket.innerHTML = renderTicket(latestGenerated);
@@ -168,6 +224,12 @@ function renderAnalysis() {
   const analysis = analyzeDraws(state.draws, state.typeId);
   const latest = analysis.latest;
   const type = getLotteryType(state.typeId);
+  const typeDraws = state.draws.filter((draw) => draw.type === state.typeId);
+  const theory = buildTierWeightedTheory({ typeId: state.typeId, draws: typeDraws });
+  const simulationSummary = summarizeSimulationRecords(
+    state.typeId,
+    state.history.map((item) => item.simulation).filter(Boolean),
+  );
 
   elements.latestIssue.textContent = latest ? `${latest.issue} 期` : "暂无数据";
   elements.latestDraw.innerHTML = latest
@@ -190,14 +252,85 @@ function renderAnalysis() {
       <div class="stat"><b>遗漏</b><span>${miss}</span></div>
       <div class="stat"><b>奇偶累计</b><span>${analysis.parity[firstGroup].odd}:${analysis.parity[firstGroup].even}</span></div>
     </div>
+    ${renderTheorySummary(theory)}
+    ${renderSimulationSummary(simulationSummary, type)}
   `;
 }
 
 function renderHistory() {
   elements.historyCount.textContent = `${state.history.length} 组`;
   elements.history.innerHTML = state.history.length
-    ? state.history.map((item) => `<div class="history-item">${renderTicket(item, true)}</div>`).join("")
+    ? `<ol class="history-list-items">${state.history.map(renderHistoryRecord).join("")}</ol>`
     : `<p class="muted">生成后的号码会保存在本次浏览记录中。</p>`;
+}
+
+function renderHistoryRecord(item) {
+  const type = getLotteryType(item.typeId);
+  const simulation = item.simulation?.evaluation;
+  const simulationText = simulation
+    ? `${simulation.tierName} · ${simulation.matchText}`
+    : "待复盘";
+
+  return `
+    <li class="history-record">
+      <div class="history-record__meta">
+        <strong>${escapeHtml(type.shortName)} · ${labelStrategy(item.strategy)}</strong>
+        <span>${escapeHtml(item.createdAt ?? "")}</span>
+      </div>
+      <code>${escapeHtml(formatTicketText(item.typeId, item.ticket))}</code>
+      <p>${escapeHtml(simulationText)}</p>
+    </li>
+  `;
+}
+
+function renderTicketCheck() {
+  const type = getLotteryType(state.checkTypeId);
+
+  elements.checkTypeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.checkType === state.checkTypeId);
+  });
+
+  elements.checkPreview.innerHTML = state.checkImageUrl
+    ? `<img alt="彩票票面预览" src="${escapeHtml(state.checkImageUrl)}" />`
+    : `<p class="muted">尚未选择票面照片。</p>`;
+
+  elements.checkFields.innerHTML = Object.entries(type.groups)
+    .map(
+      ([groupName, rule]) => `
+        <label class="field">
+          <span>${escapeHtml(rule.label)}号码</span>
+          <input
+            data-check-group="${escapeHtml(groupName)}"
+            inputmode="numeric"
+            placeholder="${escapeHtml(buildNumberPlaceholder(rule.count))}"
+            value="${escapeHtml(state.checkValues[state.checkTypeId][groupName] ?? "")}"
+          />
+        </label>
+      `,
+    )
+    .join("");
+
+  elements.checkResult.innerHTML = state.checkResult
+    ? renderCheckResult(state.checkResult)
+    : `<p class="muted">选择彩种并填写期号、号码后，可查询对应期开奖与奖级。</p>`;
+}
+
+function renderCheckResult(result) {
+  if (result.error || !result.found) {
+    return `
+      <b>${result.error ? "查询信息有误" : "未找到对应期号"}</b>
+      <p>${escapeHtml(result.summary)}</p>
+      <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
+    `;
+  }
+
+  const type = getLotteryType(result.typeId);
+  return `
+    <b>${escapeHtml(type.shortName)} ${escapeHtml(result.issue)} 期</b>
+    <p>${escapeHtml(result.summary)}</p>
+    ${renderBalls(formatTicket(result.typeId, result.draw), type)}
+    <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
+  `;
 }
 
 function renderTicket(result, compact = false) {
@@ -211,8 +344,53 @@ function renderTicket(result, compact = false) {
     <ul class="explain-list">
       ${result.explanation.items.slice(0, compact ? 2 : 5).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
     </ul>
+    ${result.simulation ? renderSimulation(result.simulation, compact) : ""}
     ${compact ? "" : `<p class="positive-message">${escapeHtml(result.message)}</p>`}
     <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
+  `;
+}
+
+function renderTheorySummary(theory) {
+  return `
+    <div class="theory-summary">
+      <b>分层理论</b>
+      <p>${escapeHtml(theory.summary)}</p>
+      <ul class="compact-list">
+        ${theory.methodNotes.slice(0, 2).map((note) => `<li>${escapeHtml(note)}</li>`).join("")}
+      </ul>
+      <p class="fine-print">${escapeHtml(theory.complianceNote)}</p>
+    </div>
+  `;
+}
+
+function renderSimulationSummary(summary, type) {
+  const groupNames = Object.keys(type.groups);
+  const primaryLabel = type.groups[groupNames[0]].label;
+  const secondaryLabel = type.groups[groupNames[1]].label;
+  return `
+    <div class="tracking-summary">
+      <b>模拟复盘</b>
+      <div class="tracking-line">
+        <span>记录 ${summary.total} 组</span>
+        <span>命中奖级 ${summary.hitCount} 组</span>
+        <span>最佳 ${escapeHtml(summary.bestTierName)}</span>
+      </div>
+      <p>${escapeHtml(primaryLabel)}平均匹配 ${summary.averagePrimaryMatches} 个，${escapeHtml(secondaryLabel)}平均匹配 ${summary.averageSecondaryMatches} 个。</p>
+      <p class="fine-print">${escapeHtml(summary.lesson)}</p>
+    </div>
+  `;
+}
+
+function renderSimulation(record, compact = false) {
+  const evaluation = record.evaluation;
+  return `
+    <div class="simulation-box">
+      <b>模拟命中分析</b>
+      <span>${escapeHtml(record.issue)} 期 · ${escapeHtml(evaluation.tierName)}</span>
+      <p>${escapeHtml(evaluation.matchText)}</p>
+      ${compact ? "" : `<p>${escapeHtml(record.lesson)}</p>`}
+      ${compact ? "" : `<p class="fine-print">${escapeHtml(record.complianceNote)}</p>`}
+    </div>
   `;
 }
 
@@ -247,7 +425,28 @@ function labelStrategy(strategy) {
     balanced: "均衡生成",
     random: "随机生成",
     data: "数据参考",
+    theory: "分层理论模型",
   }[strategy];
+}
+
+function buildNumberPlaceholder(count) {
+  return Array.from({ length: count }, (_, index) => String(index + 1).padStart(2, "0")).join(" ");
+}
+
+function formatTicketText(typeId, ticket) {
+  const type = getLotteryType(typeId);
+  const formatted = formatTicket(typeId, ticket);
+  return Object.entries(type.groups)
+    .map(([groupName, rule]) => `${rule.label}:${formatted[groupName].join(" ")}`)
+    .join(" / ");
+}
+
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js").catch((error) => {
+      console.warn("Service worker registration failed", error);
+    });
+  }
 }
 
 function pad(number) {

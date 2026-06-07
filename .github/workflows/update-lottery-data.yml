@@ -1,0 +1,38 @@
+name: Update lottery data
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 双色球：周二/四/日 21:15 开奖，北京时间 21:45 抓取。
+    - cron: "45 13 * * 0,2,4"
+    # 超级大乐透：周一/三/六 21:25 开奖，北京时间 22:00 抓取。
+    - cron: "0 14 * * 1,3,6"
+    # 开奖日晚间补抓一次，覆盖数据源延迟发布的情况。
+    - cron: "30 15 * * 0,1,2,3,4,6"
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Import latest lottery data
+        run: |
+          npm run import:ssq
+          npm run import:dlt
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/ssq-history.csv data/dlt-history.csv; then
+            echo "No lottery data changes."
+          else
+            git add data/ssq-history.csv data/dlt-history.csv
+            git commit -m "Update lottery history data"
+            git push
+          fi

@@ -1,4 +1,5 @@
 import { getLotteryType, validateTicket } from "./lotteryCatalog.mjs";
+import { generateTheoryTicket } from "./recommendationTheory.mjs";
 
 const DEFAULT_POSITIVE_MESSAGES = [
   "把期待放轻，把脚步走稳。",
@@ -15,8 +16,10 @@ export function generateTicket({
   rng = Math.random,
 } = {}) {
   const type = getLotteryType(typeId);
-  const ticket =
-    strategy === "data"
+  const theoryResult = strategy === "theory" ? generateTheoryTicket({ typeId, draws, rng }) : null;
+  const ticket = theoryResult
+    ? theoryResult.ticket
+    : strategy === "data"
       ? generateDataReferenceTicket(type, draws, rng)
       : strategy === "random"
         ? generateRandomTicket(type, rng)
@@ -31,9 +34,10 @@ export function generateTicket({
     typeId,
     strategy,
     ticket: validation.normalized,
-    explanation: explainTicket(typeId, validation.normalized, strategy),
+    explanation: explainTicket(typeId, validation.normalized, strategy, theoryResult?.theory),
     message: pickMessage(rng),
     complianceNote: "生成结果仅供娱乐参考，不构成中奖预测。彩票开奖具有随机性，请理性使用。",
+    theory: theoryResult?.theory,
   };
 }
 
@@ -138,7 +142,7 @@ function scoreGroup(numbers, rule) {
   return parityBalance + regionCount - consecutiveCount;
 }
 
-export function explainTicket(typeId, ticket, strategy) {
+export function explainTicket(typeId, ticket, strategy, theory = null) {
   const type = getLotteryType(typeId);
   const items = [];
 
@@ -155,11 +159,18 @@ export function explainTicket(typeId, ticket, strategy) {
   }
 
   const summary =
-    strategy === "data"
+    strategy === "theory"
+      ? "分层理论模型：按官方奖级结构、历史数据与低权重随机扰动生成娱乐参考组合。"
+      : strategy === "data"
       ? "历史数据参考生成：参考公开开奖分布，但历史数据不影响未来开奖结果。"
       : strategy === "random"
         ? "随机生成：按彩种规则生成合法号码。"
         : "均衡生成：在合法随机基础上筛选结构较均衡的组合。";
+
+  if (theory) {
+    items.push(theory.summary);
+    items.push(theory.methodNotes[0]);
+  }
 
   items.push("历史数据仅用于娱乐分析，不构成中奖预测。");
 

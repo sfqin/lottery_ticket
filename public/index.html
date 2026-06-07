@@ -3,8 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1d2530" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="选号助手" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>大乐透/双色球智能选号助手</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="shell">
@@ -23,7 +30,7 @@
         <div class="panel generator-panel">
           <div class="section-heading">
             <span>选号</span>
-            <strong id="remaining-count">今日剩余 3 组</strong>
+            <strong id="remaining-count">不限次数</strong>
           </div>
 
           <div class="segmented" role="group" aria-label="选择彩种">
@@ -37,6 +44,7 @@
               <option value="balanced">均衡生成</option>
               <option value="random">随机生成</option>
               <option value="data">数据参考</option>
+              <option value="theory">分层理论模型</option>
             </select>
           </label>
 
@@ -46,10 +54,6 @@
             <p class="muted">选择彩种和模式后，点击生成号码。</p>
           </div>
 
-          <div class="unlock-panel" id="unlock-panel" hidden>
-            <p>今日免费次数已用完。观看一次模拟广告可解锁 3 组生成次数。</p>
-            <button class="secondary-action" id="ad-unlock-button" type="button">模拟观看广告</button>
-          </div>
         </div>
 
         <div class="panel analysis-panel">
@@ -63,6 +67,48 @@
         </div>
       </section>
 
+      <section class="panel ticket-check-panel" aria-label="拍照验票辅助">
+        <div class="section-heading">
+          <span>拍照验票</span>
+          <strong>仅双色球 / 大乐透</strong>
+        </div>
+
+        <p class="fine-print">
+          可调起手机相机拍摄票面，照片仅在本机预览，不上传。请按票面确认期号和号码，查询结果以官方公告和实体票为准。
+        </p>
+
+        <div class="segmented" role="group" aria-label="选择验票彩种">
+          <button class="segment is-active" data-check-type="ssq" type="button">双色球</button>
+          <button class="segment" data-check-type="dlt" type="button">大乐透</button>
+        </div>
+
+        <label class="camera-picker">
+          <input id="ticket-photo-input" type="file" accept="image/*" capture="environment" />
+          <span>拍照或选择彩票照片</span>
+        </label>
+
+        <div class="photo-preview" id="ticket-photo-preview">
+          <p class="muted">尚未选择票面照片。</p>
+        </div>
+
+        <div class="check-form">
+          <label class="field">
+            <span>期号</span>
+            <input id="ticket-issue-input" inputmode="numeric" placeholder="如 2026063" />
+          </label>
+
+          <div class="check-fields" id="ticket-check-fields"></div>
+
+          <button class="secondary-action check-action" id="check-ticket-button" type="button">
+            查询是否命中奖级
+          </button>
+        </div>
+
+        <div class="check-result" id="ticket-check-result" aria-live="polite">
+          <p class="muted">选择彩种并填写期号、号码后，可查询对应期开奖与奖级。</p>
+        </div>
+      </section>
+
       <section class="panel history-panel">
         <div class="section-heading">
           <span>生成记录</span>
@@ -71,6 +117,7 @@
         <div id="history-list" class="history-list">
           <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
         </div>
+        <p class="fine-print">记录仅保存在本机浏览器，仅供数据分析，不构成中奖预测。</p>
       </section>
 
       <section class="panel appreciation-panel">
@@ -84,6 +131,6 @@
       </section>
     </main>
 
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

@@ -1,0 +1,18 @@
+{
+  "name": "大乐透/双色球智能选号助手",
+  "short_name": "选号助手",
+  "description": "大乐透和双色球号码生成、历史数据分析与拍照验票辅助。仅供娱乐参考。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#1d2530",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
