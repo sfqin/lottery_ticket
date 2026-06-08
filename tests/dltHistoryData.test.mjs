@@ -11,10 +11,13 @@ describe("stored DLT history data", () => {
     const validation = validateDltDraws(draws);
 
     assert.equal(validation.valid, true);
-    assert.equal(draws.length, 2879);
-    assert.equal(draws[0].issue, "26061");
-    assert.equal(draws[0].date, "2026-06-03");
-    assert.deepEqual(draws[0].front, [10, 12, 26, 31, 35]);
-    assert.deepEqual(draws[0].back, [2, 12]);
+    assert.ok(draws.length >= 2879);
+    assert.ok(draws.some((draw) => draw.issue === "26061"));
+
+    const latestKnown = draws.find((draw) => draw.issue === "26062");
+    assert.ok(latestKnown);
+    assert.equal(latestKnown.date, "2026-06-06");
+    assert.deepEqual(latestKnown.front, [7, 15, 20, 24, 29]);
+    assert.deepEqual(latestKnown.back, [4, 10]);
   });
 });

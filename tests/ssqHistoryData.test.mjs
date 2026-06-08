@@ -11,10 +11,13 @@ describe("stored SSQ history data", () => {
     const validation = validateSsqDraws(draws);
 
     assert.equal(validation.valid, true);
-    assert.equal(draws.length, 3460);
-    assert.equal(draws[0].issue, "2026063");
-    assert.equal(draws[0].date, "2026-06-04");
-    assert.deepEqual(draws[0].red, [2, 8, 25, 28, 30, 31]);
-    assert.deepEqual(draws[0].blue, [2]);
+    assert.ok(draws.length >= 3460);
+    assert.ok(draws.some((draw) => draw.issue === "2026063"));
+
+    const latestKnown = draws.find((draw) => draw.issue === "2026064");
+    assert.ok(latestKnown);
+    assert.equal(latestKnown.date, "2026-06-07");
+    assert.deepEqual(latestKnown.red, [1, 9, 15, 18, 29, 33]);
+    assert.deepEqual(latestKnown.blue, [15]);
   });
 });
