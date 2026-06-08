@@ -1,34 +1,37 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260607-bottom-polish";
-import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260607-bottom-polish";
-import { createEntitlementState } from "./src/entitlements.mjs?v=20260607-bottom-polish";
-import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260607-bottom-polish";
-import { generateTicket } from "./src/numberGenerator.mjs?v=20260607-bottom-polish";
-import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260607-bottom-polish";
-import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260607-bottom-polish";
-import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260607-bottom-polish";
-import { parseDltCsv } from "./src/dltHistory.mjs?v=20260607-bottom-polish";
-import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260607-bottom-polish";
-import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260607-bottom-polish";
-import { checkTicketByIssue, checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260607-bottom-polish";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260609-copy-analysis";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260609-copy-analysis";
+import { createEntitlementState } from "./src/entitlements.mjs?v=20260609-copy-analysis";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260609-copy-analysis";
+import { generateTicket } from "./src/numberGenerator.mjs?v=20260609-copy-analysis";
+import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260609-copy-analysis";
+import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260609-copy-analysis";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260609-copy-analysis";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-copy-analysis";
+import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-copy-analysis";
+import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-copy-analysis";
+import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260609-copy-analysis";
+import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-copy-analysis";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
   typeId: "ssq",
+  analysisTypeId: "ssq",
   strategy: "balanced",
   generateCount: 5,
   entitlement: loadEntitlement(),
   history: loadHistory(),
+  latestGeneratedBatch: null,
+  copyStatus: "",
   checkTypeId: "ssq",
-  checkImageUrl: "",
-  checkValues: {
-    ssq: {},
-    dlt: {},
-  },
   checkResult: null,
   appreciationMethod: "wechat",
-  checkText: {
+  checkIssue: {
     ssq: "",
     dlt: "",
+  },
+  checkRows: {
+    ssq: [createBlankCheckRow("ssq")],
+    dlt: [createBlankCheckRow("dlt")],
   },
   selectedDrawIssue: {
     ssq: "",
@@ -49,6 +52,7 @@ const elements = {
   notices: document.querySelector("#required-notices"),
   remaining: document.querySelector("#remaining-count"),
   typeButtons: [...document.querySelectorAll("[data-type]")],
+  analysisTypeButtons: [...document.querySelectorAll("[data-analysis-type]")],
   strategy: document.querySelector("#strategy-select"),
   generateCount: document.querySelector("#generate-count-select"),
   generate: document.querySelector("#generate-button"),
@@ -60,11 +64,9 @@ const elements = {
   historyCount: document.querySelector("#history-count"),
   history: document.querySelector("#history-list"),
   checkTypeButtons: [...document.querySelectorAll("[data-check-type]")],
-  checkPhoto: document.querySelector("#ticket-photo-input"),
-  checkPreview: document.querySelector("#ticket-photo-preview"),
-  checkIssue: document.querySelector("#ticket-issue-input"),
+  checkIssue: document.querySelector("#ticket-issue-select"),
   checkFields: document.querySelector("#ticket-check-fields"),
-  checkLines: document.querySelector("#ticket-lines-input"),
+  checkAddRow: document.querySelector("#ticket-add-row-button"),
   checkButton: document.querySelector("#check-ticket-button"),
   checkResult: document.querySelector("#ticket-check-result"),
   prizeRules: document.querySelector("#prize-rules"),
@@ -87,6 +89,13 @@ function initialize() {
     });
   });
 
+  elements.analysisTypeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.analysisTypeId = button.dataset.analysisType;
+      renderAnalysis();
+    });
+  });
+
   elements.strategy.addEventListener("change", () => {
     state.strategy = elements.strategy.value;
   });
@@ -97,8 +106,8 @@ function initialize() {
 
   elements.redeemableDraws.addEventListener("change", (event) => {
     if (event.target.id === "redeemable-issue-select") {
-      state.selectedDrawIssue[state.typeId] = event.target.value;
-      state.selectedDrawTouched[state.typeId] = true;
+      state.selectedDrawIssue[state.analysisTypeId] = event.target.value;
+      state.selectedDrawTouched[state.analysisTypeId] = true;
       renderAnalysis();
     }
   });
@@ -111,29 +120,31 @@ function initialize() {
     });
   });
 
-  elements.checkPhoto.addEventListener("change", () => {
-    const file = elements.checkPhoto.files?.[0];
-    if (state.checkImageUrl) {
-      URL.revokeObjectURL(state.checkImageUrl);
-      state.checkImageUrl = "";
-    }
-
-    if (file) {
-      state.checkImageUrl = URL.createObjectURL(file);
-    }
-
-    renderTicketCheck();
+  elements.checkIssue.addEventListener("change", () => {
+    state.checkIssue[state.checkTypeId] = elements.checkIssue.value;
+    state.checkResult = null;
   });
 
   elements.checkFields.addEventListener("input", (event) => {
-    const groupName = event.target.dataset.checkGroup;
-    if (groupName) {
-      state.checkValues[state.checkTypeId][groupName] = event.target.value;
-    }
+    if (!event.target.matches("[data-check-number]")) return;
+    updateCheckNumber(event.target);
   });
 
-  elements.checkLines.addEventListener("input", () => {
-    state.checkText[state.checkTypeId] = elements.checkLines.value;
+  elements.checkFields.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-check-row]");
+    if (!removeButton) return;
+    removeCheckRow(removeButton.dataset.removeCheckRow);
+  });
+
+  elements.checkFields.addEventListener("keydown", (event) => {
+    if (event.key !== "Backspace" || event.target.value !== "") return;
+    focusPreviousCheckInput(event.target);
+  });
+
+  elements.checkAddRow.addEventListener("click", () => {
+    state.checkRows[state.checkTypeId].push(createBlankCheckRow(state.checkTypeId));
+    state.checkResult = null;
+    renderTicketCheck({ focusLastRow: true });
   });
 
   elements.appreciationMethods.forEach((button) => {
@@ -141,6 +152,13 @@ function initialize() {
       state.appreciationMethod = button.dataset.appreciationMethod;
       renderAppreciation();
     });
+  });
+
+  elements.ticket.addEventListener("click", (event) => {
+    const copyButton = event.target.closest("[data-copy-generated]");
+    if (copyButton) {
+      copyGeneratedBatch();
+    }
   });
 
   elements.generate.addEventListener("click", () => {
@@ -164,17 +182,18 @@ function initialize() {
 
     state.history.unshift(...generated);
     state.history = state.history.slice(0, 12);
+    state.latestGeneratedBatch = generated;
+    state.copyStatus = "";
     persist();
     render(generated);
   });
 
   elements.checkButton.addEventListener("click", () => {
     try {
-      state.checkText[state.checkTypeId] = elements.checkLines.value;
       state.checkResult = checkTicketLinesByIssue({
         typeId: state.checkTypeId,
         issue: elements.checkIssue.value,
-        ticketText: state.checkText[state.checkTypeId],
+        ticketText: buildTicketTextFromRows(state.checkTypeId),
         draws: state.draws,
       });
     } catch (error) {
@@ -249,28 +268,32 @@ function render(latestGenerated = null) {
   } else if (state.history.length) {
     elements.ticket.innerHTML = renderTicket(state.history[0]);
   } else {
-    elements.ticket.innerHTML = `<p class="muted">选择彩种和模式后，点击生成号码。</p>`;
+    elements.ticket.innerHTML = "";
   }
 }
 
 function renderAnalysis() {
-  const analysis = analyzeDraws(state.draws, state.typeId);
-  const type = getLotteryType(state.typeId);
-  const typeDraws = state.draws.filter((draw) => draw.type === state.typeId);
+  const analysis = analyzeDraws(state.draws, state.analysisTypeId);
+  const type = getLotteryType(state.analysisTypeId);
+  const typeDraws = state.draws.filter((draw) => draw.type === state.analysisTypeId);
   const redeemableDraws = getRedeemableDraws(typeDraws, new Date());
-  const latest = getSelectedDraw(state.typeId, redeemableDraws, analysis.latest);
-  const theory = buildTierWeightedTheory({ typeId: state.typeId, draws: typeDraws });
+  const latest = getSelectedDraw(state.analysisTypeId, redeemableDraws, analysis.latest);
+  const theory = buildTierWeightedTheory({ typeId: state.analysisTypeId, draws: typeDraws });
   const simulationSummary = summarizeSimulationRecords(
-    state.typeId,
+    state.analysisTypeId,
     state.history.map((item) => item.simulation).filter(Boolean),
   );
+
+  elements.analysisTypeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.analysisType === state.analysisTypeId);
+  });
 
   elements.latestIssue.textContent = latest ? `${latest.issue} 期` : "暂无数据";
   elements.latestDraw.innerHTML = latest
     ? `
       <strong>${escapeHtml(type.name)} ${escapeHtml(latest.issue)} 期 · ${escapeHtml(latest.date)}</strong>
-      ${renderBalls(formatTicket(state.typeId, latest), type)}
-      <p class="fine-print">${escapeHtml(state.dataNotice[state.typeId])}</p>
+      ${renderBalls(formatTicket(state.analysisTypeId, latest), type)}
+      <p class="fine-print">${escapeHtml(state.dataNotice[state.analysisTypeId])}</p>
     `
     : `<p class="muted">暂无开奖数据。</p>`;
 
@@ -292,7 +315,7 @@ function renderAnalysis() {
       ${renderSimulationSummary(simulationSummary, type)}
     </details>
   `;
-  elements.redeemableDraws.innerHTML = renderRedeemableDraws(state.typeId, redeemableDraws, latest);
+  elements.redeemableDraws.innerHTML = renderRedeemableDraws(state.analysisTypeId, redeemableDraws, latest);
 }
 
 function renderHistory() {
@@ -346,28 +369,42 @@ function renderAppreciation() {
   });
 }
 
-function renderTicketCheck() {
+function renderTicketCheck(options = {}) {
   const type = getLotteryType(state.checkTypeId);
+  const redeemableDraws = getRedeemableDraws(
+    state.draws.filter((draw) => draw.type === state.checkTypeId),
+    new Date(),
+  );
+  const selectedIssue = getSelectedCheckIssue(state.checkTypeId, redeemableDraws);
 
   elements.checkTypeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.checkType === state.checkTypeId);
   });
 
-  elements.checkPreview.innerHTML = state.checkImageUrl
-    ? `<img alt="彩票票面预览" src="${escapeHtml(state.checkImageUrl)}" />`
-    : `<p class="muted">尚未选择票面照片。</p>`;
+  elements.checkIssue.innerHTML = redeemableDraws.length
+    ? redeemableDraws
+        .map(
+          ({ draw }) => `
+            <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedIssue ? "selected" : ""}>
+              ${escapeHtml(draw.issue)}期，${escapeHtml(draw.date ?? "")}开奖
+            </option>
+          `,
+        )
+        .join("")
+    : `<option value="">暂无可兑奖期号</option>`;
 
-  elements.checkFields.innerHTML = `<p class="fine-print">可从票面逐行录入多注号码；照片暂仅本机预览，不上传识别。</p>`;
-  elements.checkLines.value = state.checkText[state.checkTypeId];
-  elements.checkLines.placeholder =
-    state.checkTypeId === "ssq"
-      ? "每行一注，如：08 13 17 21 24 29 + 03"
-      : "每行一注，如：02 08 13 21 30 + 04 11";
+  elements.checkFields.innerHTML = renderCheckRows(state.checkTypeId);
 
   elements.checkResult.innerHTML = state.checkResult
     ? renderCheckResult(state.checkResult)
-    : `<p class="muted">选择彩种并填写期号、多注号码后，可查询对应期开奖与奖级。</p>`;
+    : "";
+  elements.checkResult.classList.toggle("is-empty", !state.checkResult);
   elements.prizeRules.innerHTML = renderPrizeRules(getPrizeRuleSummary(state.checkTypeId));
+
+  if (options.focusLastRow) {
+    const inputs = elements.checkFields.querySelectorAll("[data-check-number]");
+    inputs[inputs.length - getLotteryInputCount(state.checkTypeId)]?.focus();
+  }
 }
 
 function renderCheckResult(result) {
@@ -375,7 +412,6 @@ function renderCheckResult(result) {
     return `
       <b>${result.error ? "查询信息有误" : "未找到对应期号"}</b>
       <p>${escapeHtml(result.summary)}</p>
-      <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
     `;
   }
 
@@ -383,12 +419,11 @@ function renderCheckResult(result) {
   if (Array.isArray(result.lines)) {
     return `
       <b>${escapeHtml(type.shortName)} ${escapeHtml(result.issue)} 期 · ${escapeHtml(result.date ?? "")}</b>
-      <p>${escapeHtml(result.summary)}</p>
+      <p class="check-summary">${escapeHtml(formatCheckSummary(result))}</p>
       ${renderBalls(formatTicket(result.typeId, result.draw), type)}
       <div class="checked-lines">
         ${result.lines.map((line) => renderCheckedLine(result.typeId, line)).join("")}
       </div>
-      <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
     `;
   }
 
@@ -396,7 +431,6 @@ function renderCheckResult(result) {
     <b>${escapeHtml(type.shortName)} ${escapeHtml(result.issue)} 期</b>
     <p>${escapeHtml(result.summary)}</p>
     ${renderBalls(formatTicket(result.typeId, result.draw), type)}
-    <p class="fine-print">${escapeHtml(result.complianceNote)}</p>
   `;
 }
 
@@ -404,13 +438,15 @@ function renderCheckedLine(typeId, line) {
   const type = getLotteryType(typeId);
   const formatted = formatTicket(typeId, line.ticket);
   const hitClass = line.evaluation.hit ? " check-line--hit" : "";
+  const prizeAmount = formatPrizeAmount(line.evaluation.prizeLabel);
   return `
     <div class="check-line${hitClass}">
       <div class="check-line__meta">
         <b>第 ${line.index} 注 · ${escapeHtml(line.evaluation.tierName)}</b>
-        <span>${escapeHtml(line.evaluation.matchText)}</span>
+        <small>${escapeHtml(prizeAmount)}</small>
+        <span>${escapeHtml(formatCompactMatchText(type, line.evaluation.matches))}</span>
       </div>
-      ${renderBalls(formatted, type, line.matchedNumbers)}
+      ${renderCheckedBalls(formatted, type, line.matchedNumbers)}
     </div>
   `;
 }
@@ -437,6 +473,10 @@ function renderTicket(result, compact = false) {
 function renderGeneratedBatch(results) {
   return `
     <div class="generated-batch">
+      <div class="batch-actions">
+        <button class="ghost-action batch-copy" data-copy-generated type="button">复制本批号码</button>
+        ${state.copyStatus ? `<span>${escapeHtml(state.copyStatus)}</span>` : ""}
+      </div>
       ${results.map((item) => `<article class="generated-item">${renderTicket(item, true)}</article>`).join("")}
     </div>
   `;
@@ -501,6 +541,233 @@ function renderBalls(formatted, type, matchedNumbers = {}) {
   return `<div class="ball-row" aria-label="${escapeHtml(type.shortName)}号码">${balls}</div>`;
 }
 
+function renderCheckedBalls(formatted, type, matchedNumbers = {}) {
+  const balls = Object.entries(type.groups)
+    .flatMap(([groupName, rule]) => {
+      const matchedSet = new Set(matchedNumbers[groupName] ?? []);
+      return formatted[groupName].map((number) => {
+        const value = Number(number);
+        const matchedClass = matchedSet.has(value) ? " check-ball--matched" : "";
+        return `<span class="check-ball check-ball--${rule.color}${matchedClass}">${number}</span>`;
+      });
+    })
+    .join("");
+
+  return `<div class="check-ball-row" aria-label="${escapeHtml(type.shortName)}票面号码">${balls}</div>`;
+}
+
+function formatPrizeAmount(prizeLabel) {
+  return prizeLabel === "浮动奖金" ? "浮动" : prizeLabel;
+}
+
+async function copyGeneratedBatch() {
+  const batch = state.latestGeneratedBatch;
+  if (!Array.isArray(batch) || !batch.length) return;
+
+  const text = formatGeneratedBatchForCopy(batch);
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopyText(text);
+    }
+    state.copyStatus = "已复制";
+  } catch (error) {
+    try {
+      fallbackCopyText(text);
+      state.copyStatus = "已复制";
+    } catch {
+      state.copyStatus = "复制失败，请手动选择号码";
+    }
+  }
+
+  elements.ticket.innerHTML = renderGeneratedBatch(batch);
+}
+
+function formatGeneratedBatchForCopy(batch) {
+  return batch.map((item, index) => formatGeneratedLineForCopy(item, index)).join("\n");
+}
+
+function formatGeneratedLineForCopy(item, index) {
+  const type = getLotteryType(item.typeId);
+  const formatted = formatTicket(item.typeId, item.ticket);
+  const groups = Object.keys(type.groups).map((groupName) => formatted[groupName].join(","));
+  return `${formatChineseOrdinal(index + 1)}注 ${groups.join("   ")}`;
+}
+
+function formatChineseOrdinal(number) {
+  const numerals = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+  if (number <= 10) return `第${numerals[number]}`;
+  if (number < 20) return `第十${numerals[number - 10]}`;
+  return `第${number}`;
+}
+
+function fallbackCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) {
+    throw new Error("copy command failed");
+  }
+}
+
+function formatCheckSummary(result) {
+  const totalPrize = summarizePrizeAmount(result.lines);
+  return `共${result.lines.length}注，中${result.hitCount}注，共${totalPrize}`;
+}
+
+function summarizePrizeAmount(lines) {
+  if (lines.some((line) => line.evaluation.prizeLabel === "浮动奖金")) {
+    return "含浮动";
+  }
+
+  const total = lines.reduce((sum, line) => sum + parsePrizeYuan(line.evaluation.prizeLabel), 0);
+  return `${total}元`;
+}
+
+function parsePrizeYuan(prizeLabel) {
+  const match = String(prizeLabel).match(/^(\d+(?:\.\d+)?)元$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function formatCompactMatchText(type, matches) {
+  return Object.entries(type.groups)
+    .map(([groupName, rule]) => `${rule.label.slice(0, 1)}${matches[groupName] ?? 0}`)
+    .join("");
+}
+
+function renderCheckRows(typeId) {
+  const type = getLotteryType(typeId);
+  return `
+    <div class="manual-check-rows">
+      ${state.checkRows[typeId].map((row, index) => renderCheckRow(type, row, index)).join("")}
+    </div>
+  `;
+}
+
+function renderCheckRow(type, row, rowIndex) {
+  const groups = Object.entries(type.groups)
+    .map(
+      ([groupName, rule]) => `
+        <div
+          class="number-group number-group--${escapeHtml(rule.color)}"
+          aria-label="${escapeHtml(rule.label)}"
+          title="${escapeHtml(rule.label)}"
+        >
+          ${Array.from({ length: rule.count }, (_, numberIndex) =>
+            renderNumberInput(row, groupName, numberIndex, rule),
+          ).join("")}
+        </div>
+      `,
+    )
+    .join("");
+
+  const removeDisabled = state.checkRows[type.id].length <= 1 ? "disabled" : "";
+
+  return `
+    <article class="manual-check-row" data-check-row="${escapeHtml(row.id)}">
+      <div class="manual-check-row__title">
+        <b>第 ${rowIndex + 1} 注</b>
+        <button class="row-remove" data-remove-check-row="${escapeHtml(row.id)}" type="button" ${removeDisabled}>删除</button>
+      </div>
+      <div class="number-track">${groups}</div>
+    </article>
+  `;
+}
+
+function renderNumberInput(row, groupName, numberIndex, rule) {
+  const value = row.groups[groupName]?.[numberIndex] ?? "";
+  return `
+    <input
+      class="number-box number-box--${escapeHtml(rule.color)}"
+      data-check-number="true"
+      data-row-id="${escapeHtml(row.id)}"
+      data-group="${escapeHtml(groupName)}"
+      data-index="${numberIndex}"
+      inputmode="numeric"
+      maxlength="2"
+      aria-label="${escapeHtml(rule.label)}第 ${numberIndex + 1} 个号码"
+      value="${escapeHtml(value)}"
+    />
+  `;
+}
+
+function updateCheckNumber(input) {
+  const row = findCheckRow(input.dataset.rowId);
+  if (!row) return;
+
+  const cleanValue = input.value.replace(/\D/g, "").slice(0, 2);
+  input.value = cleanValue;
+  row.groups[input.dataset.group][Number(input.dataset.index)] = cleanValue;
+  state.checkResult = null;
+
+  if (cleanValue.length === 2) {
+    focusNextCheckInput(input);
+  }
+}
+
+function focusNextCheckInput(input) {
+  const inputs = [...elements.checkFields.querySelectorAll("[data-check-number]")];
+  const next = inputs[inputs.indexOf(input) + 1];
+  next?.focus();
+}
+
+function focusPreviousCheckInput(input) {
+  const inputs = [...elements.checkFields.querySelectorAll("[data-check-number]")];
+  const previous = inputs[inputs.indexOf(input) - 1];
+  previous?.focus();
+}
+
+function removeCheckRow(rowId) {
+  const rows = state.checkRows[state.checkTypeId];
+  if (rows.length <= 1) return;
+  state.checkRows[state.checkTypeId] = rows.filter((row) => row.id !== rowId);
+  state.checkResult = null;
+  renderTicketCheck();
+}
+
+function createBlankCheckRow(typeId) {
+  const type = getLotteryType(typeId);
+  return {
+    id: `${typeId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    groups: Object.fromEntries(
+      Object.entries(type.groups).map(([groupName, rule]) => [groupName, Array(rule.count).fill("")]),
+    ),
+  };
+}
+
+function findCheckRow(rowId) {
+  return state.checkRows[state.checkTypeId].find((row) => row.id === rowId);
+}
+
+function buildTicketTextFromRows(typeId) {
+  const type = getLotteryType(typeId);
+  const groupNames = Object.keys(type.groups);
+  return state.checkRows[typeId]
+    .map((row) => groupNames.map((groupName) => row.groups[groupName].join(" ")).join(" + "))
+    .join("\n");
+}
+
+function getSelectedCheckIssue(typeId, redeemableDraws) {
+  const savedIssue = state.checkIssue[typeId];
+  const selected = redeemableDraws.find(({ draw }) => draw.issue === savedIssue)?.draw.issue;
+  const fallback = redeemableDraws[0]?.draw.issue ?? "";
+  state.checkIssue[typeId] = selected ?? fallback;
+  return state.checkIssue[typeId];
+}
+
+function getLotteryInputCount(typeId) {
+  const type = getLotteryType(typeId);
+  return Object.values(type.groups).reduce((total, rule) => total + rule.count, 0);
+}
+
 function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
   const type = getLotteryType(typeId);
 
@@ -514,9 +781,9 @@ function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
       <select id="redeemable-issue-select">
         ${redeemable
           .map(
-            ({ draw, deadline, daysLeft }) => `
+            ({ draw }) => `
               <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedDraw?.issue ? "selected" : ""}>
-                ${escapeHtml(type.shortName)} ${escapeHtml(draw.issue)} 期 · ${escapeHtml(draw.date ?? "")} 开奖 · ${daysLeft} 天 · 截止 ${formatDate(deadline)}
+                ${escapeHtml(draw.issue)}期，${escapeHtml(draw.date ?? "")}开奖
               </option>
             `,
           )
@@ -536,20 +803,6 @@ function getSelectedDraw(typeId, redeemable, fallbackDraw) {
   return selected ?? latestRedeemable ?? fallbackDraw;
 }
 
-function getRedeemableDraws(draws, now) {
-  const todayTime = startOfDay(now).getTime();
-  return draws
-    .map((draw) => {
-      const drawDate = parseDrawDate(draw.date);
-      const deadline = addDays(drawDate, 60);
-      const daysLeft = Math.ceil((deadline.getTime() - todayTime) / 86400000);
-      return { draw, deadline, daysLeft };
-    })
-    .filter((item) => item.daysLeft >= 0)
-    .sort((a, b) => String(b.draw.issue).localeCompare(String(a.draw.issue)))
-    .slice(0, 24);
-}
-
 function renderPrizeRules(summary) {
   const fixedCount = summary.rows.filter((row) => row.prize !== "浮动奖金").length;
   return `
@@ -562,10 +815,20 @@ function renderPrizeRules(summary) {
         ${summary.rows
           .map(
             (row) => `
-              <div class="prize-rule-row">
-                <b>${escapeHtml(row.name)}</b>
-                <span>${escapeHtml(row.conditionText)}</span>
-                <strong>${escapeHtml(row.prize)}</strong>
+              <div class="prize-rule-card">
+                <div class="prize-rule-card__head">
+                  <b>${escapeHtml(row.name)}</b>
+                  <strong>${escapeHtml(row.prize)}</strong>
+                </div>
+                ${row.conditions
+                  .map(
+                    (condition) => `
+                      <div class="prize-rule-row">
+                        ${renderPrizeCondition(summary.typeId, condition)}
+                      </div>
+                    `,
+                  )
+                  .join("")}
               </div>
             `,
           )
@@ -574,6 +837,23 @@ function renderPrizeRules(summary) {
       <p class="fine-print">${escapeHtml(summary.note)}</p>
     </details>
   `;
+}
+
+function renderPrizeCondition(typeId, condition) {
+  const type = getLotteryType(typeId);
+  return Object.entries(type.groups)
+    .map(([groupName, rule]) => {
+      const count = condition[groupName] ?? 0;
+      const balls = Array.from({ length: count }, () => `<span class="rule-ball ${rule.color}"></span>`).join("");
+      return `
+        <span class="rule-condition-group">
+          <span class="rule-condition-label">${escapeHtml(rule.label)}</span>
+          <span class="rule-balls">${balls || `<span class="rule-zero">0</span>`}</span>
+          <b>${count}个</b>
+        </span>
+      `;
+    })
+    .join("");
 }
 
 function loadEntitlement() {
@@ -606,29 +886,6 @@ function formatTicketText(typeId, ticket) {
   return Object.entries(type.groups)
     .map(([groupName, rule]) => `${rule.label}:${formatted[groupName].join(" ")}`)
     .join(" / ");
-}
-
-function parseDrawDate(value) {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? startOfDay(new Date()) : date;
-}
-
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function formatDate(date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
 }
 
 function registerServiceWorker() {

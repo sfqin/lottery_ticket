@@ -37,19 +37,26 @@ describe("H5 content", () => {
     assert.match(app, /renderAppreciation/);
   });
 
-  it("offers a fixed double color ball and super lotto ticket check flow", async () => {
-    const [html, app] = await Promise.all([
+  it("offers a fixed double color ball and super lotto manual ticket check flow", async () => {
+    const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
+      readPublicFile("styles.css"),
     ]);
 
-    assert.match(html, /拍照验票/);
-    assert.match(html, /accept="image\/\*"/);
-    assert.match(html, /capture="environment"/);
+    assert.match(html, /手动验票/);
+    assert.match(html, /ticket-issue-select/);
+    assert.match(html, /ticket-add-row-button/);
     assert.match(html, /data-check-type="ssq"/);
     assert.match(html, /data-check-type="dlt"/);
     assert.doesNotMatch(html, /data-check-type="pl3"|data-check-type="qlc"/);
-    assert.match(app, /checkTicketByIssue/);
+    assert.doesNotMatch(`${html}\n${app}`, /选择可兑奖期号，逐行输入|选择彩种和模式后|先选择开奖期号/);
+    assert.doesNotMatch(`${html}\n${app}`, /accept="image\/\*"|capture="environment"|TESSERACT_CDN_URL|recognizeTicketPhoto/);
+    assert.match(app, /renderCheckRows/);
+    assert.match(app, /data-check-number/);
+    assert.match(app, /focusNextCheckInput/);
+    assert.match(css, /border-width: 2px/);
+    assert.match(css, /check-result\.is-empty/);
   });
 
   it("supports multi-stake ticket checking with winning row and matched-number highlights", async () => {
@@ -59,12 +66,23 @@ describe("H5 content", () => {
       readPublicFile("styles.css"),
     ]);
 
-    assert.match(html, /ticket-lines-input/);
-    assert.match(html, /多注号码/);
+    assert.match(html, /ticket-add-row-button/);
+    assert.match(app, /buildTicketTextFromRows/);
     assert.match(app, /checkTicketLinesByIssue/);
     assert.match(app, /renderCheckedLine/);
+    assert.match(app, /renderCheckedBalls/);
+    assert.match(app, /formatPrizeAmount/);
+    assert.match(app, /formatCheckSummary/);
+    assert.match(app, /formatCompactMatchText/);
+    const checkResultRenderer = app.slice(
+      app.indexOf("function renderCheckResult"),
+      app.indexOf("function renderCheckedLine"),
+    );
+    assert.equal(checkResultRenderer.includes("result.complianceNote"), false);
     assert.match(css, /check-line--hit/);
-    assert.match(css, /ball--matched/);
+    assert.match(css, /check-ball--matched/);
+    assert.match(css, /check-summary/);
+    assert.match(css, /color: #b7791f/);
   });
 
   it("shows redeemable draw periods and official prize rule tables", async () => {
@@ -77,9 +95,11 @@ describe("H5 content", () => {
     assert.match(html, /兑奖有效期/);
     assert.match(app, /renderRedeemableDraws/);
     assert.match(app, /redeemable-issue-select/);
+    assert.match(app, /getRedeemableDraws/);
     assert.match(app, /getSelectedDraw/);
     assert.match(app, /getPrizeRuleSummary/);
     assert.match(app, /rules-drawer/);
+    assert.match(app, /renderPrizeCondition/);
     assert.match(app, /60 个自然日/);
   });
 
@@ -104,7 +124,7 @@ describe("H5 content", () => {
     assert.match(css, /flex-wrap: nowrap/);
   });
 
-  it("uses a compact high-frequency layout with scan check first and five default picks", async () => {
+  it("uses a compact high-frequency layout with manual check first and five default picks", async () => {
     const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
@@ -112,16 +132,40 @@ describe("H5 content", () => {
     ]);
 
     assert.match(html, /workspace-grid/);
-    assert.ok(html.indexOf("拍照验票") < html.indexOf("<span>选号</span>"));
+    assert.ok(html.indexOf("手动验票") < html.indexOf("<span>选号</span>"));
     assert.match(html, /id="generate-count-select"/);
     assert.match(html, /<option value="5" selected>5 组<\/option>/);
     assert.match(app, /generateCount: 5/);
     assert.match(app, /renderGeneratedBatch/);
+    assert.match(html, /data-analysis-type="ssq"/);
+    assert.match(html, /data-analysis-type="dlt"/);
+    assert.match(app, /analysisTypeId: "ssq"/);
+    assert.match(app, /state\.analysisTypeId/);
     assert.match(app, /切换期号后，上方开奖号码同步展示/);
     assert.match(app, /热号 \/ 冷号 \/ 遗漏 \/ 分层理论/);
     assert.match(app, /flatMap/);
     assert.match(css, /grid-template-columns: minmax\(280px, 0\.95fr\) minmax\(300px, 1fr\) minmax\(300px, 0\.95fr\)/);
     assert.match(css, /draw-selector-field/);
+  });
+
+  it("supports copying the current generated batch in a compact text format", async () => {
+    const [html, app, css] = await Promise.all([
+      readPublicFile("index.html"),
+      readPublicFile("app.js"),
+      readPublicFile("styles.css"),
+    ]);
+
+    assert.match(app, /latestGeneratedBatch/);
+    assert.match(app, /copyGeneratedBatch/);
+    assert.match(app, /formatGeneratedBatchForCopy/);
+    assert.match(app, /formatGeneratedLineForCopy/);
+    assert.match(app, /formatChineseOrdinal/);
+    assert.match(app, /navigator\.clipboard/);
+    assert.match(app, /"零", "一", "二"/);
+    assert.match(app, /groups\.join\("   "\)/);
+    assert.match(app, /data-copy-generated/);
+    assert.match(css, /batch-copy/);
+    assert.doesNotMatch(html, /data-copy-generated/);
   });
 
   it("declares PWA install assets and scheduled data update workflow", async () => {

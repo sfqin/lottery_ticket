@@ -143,6 +143,7 @@ export function getPrizeRuleSummary(typeId) {
       tier: tier.tier,
       name: tier.name,
       prize: tier.prize,
+      conditions: tier.conditions.map((condition) => ({ ...condition })),
       conditionText: tier.conditions.map((condition) => formatCondition(type, condition)).join(" 或 "),
     })),
   };
@@ -183,7 +184,7 @@ export function evaluateTicketAgainstDraw(typeId, ticket, draw) {
     hit: Boolean(matchedTier),
     tier: matchedTier?.tier ?? 0,
     tierName: matchedTier?.name ?? "未命中",
-    prizeLabel: matchedTier?.name ?? "未达到奖级",
+    prizeLabel: matchedTier?.prize ?? "0元",
     weight: matchedTier?.weight ?? 0,
     matches,
     primaryMatches: matches[primaryGroup] ?? 0,

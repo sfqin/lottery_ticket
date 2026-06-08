@@ -12,6 +12,7 @@ describe("lottery catalog", () => {
     assert.equal(LOTTERY_TYPES.dlt.name, "超级大乐透");
     assert.equal(LOTTERY_TYPES.ssq.name, "双色球");
     assert.equal(LOTTERY_TYPES.dlt.groups.front.max, 35);
+    assert.equal(LOTTERY_TYPES.dlt.groups.front.color, "red");
     assert.equal(LOTTERY_TYPES.dlt.groups.back.count, 2);
     assert.equal(LOTTERY_TYPES.ssq.groups.red.count, 6);
     assert.equal(LOTTERY_TYPES.ssq.groups.blue.max, 16);

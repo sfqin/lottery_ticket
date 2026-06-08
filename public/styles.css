@@ -215,6 +215,13 @@ textarea {
   background: #fbfcfd;
 }
 
+.ticket-card:empty {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .ball-row {
   display: flex;
   flex-wrap: nowrap;
@@ -248,7 +255,7 @@ textarea {
 }
 
 .ball.front {
-  background: var(--orange);
+  background: var(--red);
 }
 
 .ball--matched {
@@ -591,69 +598,109 @@ textarea {
 
 .ticket-check-panel {
   display: grid;
-  gap: 12px;
-}
-
-.camera-picker {
-  position: relative;
-  display: grid;
-  min-height: 46px;
-  place-items: center;
-  border: 1px dashed var(--blue);
-  border-radius: 8px;
-  background: #eef4ff;
-  color: var(--blue);
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.camera-picker:hover {
-  box-shadow: 0 6px 18px rgba(40, 100, 217, 0.12);
-}
-
-.camera-picker input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.photo-preview {
-  display: grid;
-  min-height: 78px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfcfd;
-}
-
-.photo-preview img {
-  width: 100%;
-  max-height: 180px;
-  object-fit: contain;
-  display: block;
+  gap: 10px;
 }
 
 .check-form,
 .check-fields {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .check-action {
   width: 100%;
 }
 
+.manual-check-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.manual-check-row {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #d7e0eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.manual-check-row__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row-remove {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid #f2c6cd;
+  border-radius: 6px;
+  background: #fff5f6;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.row-remove:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.number-track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: thin;
+}
+
+.number-group {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.number-box {
+  flex: 0 0 31px;
+  width: 31px;
+  min-height: 31px;
+  padding: 0;
+  text-align: center;
+  border-width: 2px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.number-box--red,
+.number-box--front {
+  border-color: #ef8fa0;
+}
+
+.number-box--blue,
+.number-box--back {
+  border-color: #82a8f4;
+}
+
 .check-result {
   display: grid;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfd;
-  line-height: 1.65;
+  line-height: 1.45;
+}
+
+.check-result.is-empty {
+  display: none;
 }
 
 .check-result p {
@@ -662,13 +709,13 @@ textarea {
 
 .checked-lines {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .check-line {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: 7px;
+  padding: 8px 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -682,14 +729,106 @@ textarea {
 
 .check-line__meta {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
 }
 
 .check-line__meta span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.check-line__meta small {
+  color: #b7791f;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.check-line__meta b {
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.check-summary {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.check-ball-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.check-ball {
+  display: inline-grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.check-ball--red {
+  border-color: var(--red);
+}
+
+.check-ball--blue,
+.check-ball--back {
+  border-color: var(--blue);
+}
+
+.check-ball--front {
+  border-color: var(--red);
+}
+
+.check-ball--red.check-ball--matched {
+  background: var(--red);
+  color: #fff;
+}
+
+.check-ball--blue.check-ball--matched,
+.check-ball--back.check-ball--matched {
+  background: var(--blue);
+  color: #fff;
+}
+
+.check-ball--front.check-ball--matched {
+  background: var(--red);
+  color: #fff;
+}
+
+@media (max-width: 520px) {
+  .check-result {
+    padding: 8px;
+  }
+
+  .check-ball-row {
+    gap: 4px;
+  }
+
+  .check-ball {
+    flex-basis: 31px;
+    width: 31px;
+    height: 31px;
+    font-size: 13px;
+  }
 }
 
 .prize-rules {
@@ -751,25 +890,76 @@ textarea {
   padding: 10px;
 }
 
-.prize-rule-row {
+.prize-rule-card {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 78px;
   gap: 8px;
-  align-items: center;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfd;
+}
+
+.prize-rule-card__head,
+.prize-rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prize-rule-card__head strong {
+  color: var(--green);
   font-size: 13px;
 }
 
-.prize-rule-row span {
+.prize-rule-row {
+  justify-content: flex-start;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.rule-condition-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
 }
 
-.prize-rule-row strong {
-  text-align: right;
-  color: var(--green);
+.rule-condition-label {
+  font-weight: 800;
+}
+
+.rule-balls {
+  display: inline-flex;
+  align-items: center;
+  min-width: 12px;
+  gap: 2px;
+}
+
+.rule-ball {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.rule-ball.red {
+  background: var(--red);
+}
+
+.rule-ball.blue,
+.rule-ball.back {
+  background: var(--blue);
+}
+
+.rule-ball.front {
+  background: var(--red);
+}
+
+.rule-zero {
+  color: #9aa4b2;
+  font-weight: 900;
 }
 
 .ghost-action {
@@ -824,6 +1014,27 @@ textarea {
 .generated-batch {
   display: grid;
   gap: 10px;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.batch-copy {
+  min-height: 34px;
+  padding: 0 12px;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.batch-actions span {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .generated-item {

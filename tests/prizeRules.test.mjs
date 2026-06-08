@@ -31,6 +31,10 @@ describe("official prize rules", () => {
 
   it("evaluates double color ball first, second, sixth, and no prize cases", () => {
     assert.equal(
+      evaluateTicketAgainstDraw("ssq", { red: [1, 2, 3, 4, 5, 6], blue: [7] }, ssqDraw).prizeLabel,
+      "浮动奖金",
+    );
+    assert.equal(
       evaluateTicketAgainstDraw("ssq", { red: [1, 2, 3, 4, 5, 6], blue: [7] }, ssqDraw).tier,
       1,
     );
@@ -41,6 +45,10 @@ describe("official prize rules", () => {
     assert.equal(
       evaluateTicketAgainstDraw("ssq", { red: [9, 10, 11, 12, 13, 14], blue: [7] }, ssqDraw).tier,
       6,
+    );
+    assert.equal(
+      evaluateTicketAgainstDraw("ssq", { red: [9, 10, 11, 12, 13, 14], blue: [7] }, ssqDraw).prizeLabel,
+      "5元",
     );
     assert.equal(
       evaluateTicketAgainstDraw("ssq", { red: [9, 10, 11, 12, 13, 14], blue: [8] }, ssqDraw).hit,

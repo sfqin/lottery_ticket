@@ -5,7 +5,7 @@ export const LOTTERY_TYPES = {
     shortName: "大乐透",
     disclaimer: "前区 1-35 选 5 个，后区 1-12 选 2 个。",
     groups: {
-      front: { label: "前区", min: 1, max: 35, count: 5, color: "front" },
+      front: { label: "前区", min: 1, max: 35, count: 5, color: "red" },
       back: { label: "后区", min: 1, max: 12, count: 2, color: "back" },
     },
   },

@@ -27,7 +27,7 @@ const draws = [
 ];
 
 describe("ticket check", () => {
-  it("only supports double color ball and super lotto scan checks", () => {
+  it("only supports double color ball and super lotto manual checks", () => {
     assert.equal(isSupportedTicketScanType("ssq"), true);
     assert.equal(isSupportedTicketScanType("dlt"), true);
     assert.equal(isSupportedTicketScanType("pl3"), false);

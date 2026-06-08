@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20260607-bottom-polish" />
+    <link rel="stylesheet" href="styles.css?v=20260609-copy-analysis" />
   </head>
   <body>
     <main class="shell">
@@ -27,55 +27,32 @@
       </section>
 
       <section class="workspace-grid" aria-label="核心工具">
-        <section class="panel ticket-check-panel" aria-label="拍照验票辅助">
+        <section class="panel ticket-check-panel" aria-label="手动验票辅助">
           <div class="section-heading">
-            <span>拍照验票</span>
+            <span>手动验票</span>
             <strong>仅双色球 / 大乐透</strong>
           </div>
-
-          <p class="fine-print">
-            可调起手机相机拍摄票面，照片仅在本机预览，不上传。请按票面确认期号和号码，查询结果以官方公告和实体票为准。
-          </p>
 
           <div class="segmented" role="group" aria-label="选择验票彩种">
             <button class="segment is-active" data-check-type="ssq" type="button">双色球</button>
             <button class="segment" data-check-type="dlt" type="button">大乐透</button>
           </div>
 
-          <label class="camera-picker">
-            <input id="ticket-photo-input" type="file" accept="image/*" capture="environment" />
-            <span>拍照或选择彩票照片</span>
-          </label>
-
-          <div class="photo-preview" id="ticket-photo-preview">
-            <p class="muted">尚未选择票面照片。</p>
-          </div>
-
           <div class="check-form">
             <label class="field">
-              <span>期号</span>
-              <input id="ticket-issue-input" inputmode="numeric" placeholder="如 2026063" />
+              <span>开奖期号</span>
+              <select id="ticket-issue-select"></select>
             </label>
 
             <div class="check-fields" id="ticket-check-fields"></div>
-
-            <label class="field">
-              <span>多注号码</span>
-              <textarea
-                id="ticket-lines-input"
-                rows="4"
-                placeholder="每行一注，如：08 13 17 21 24 29 + 03"
-              ></textarea>
-            </label>
+            <button class="ghost-action check-action" id="ticket-add-row-button" type="button">添加一注</button>
 
             <button class="secondary-action check-action" id="check-ticket-button" type="button">
               查询是否命中奖级
             </button>
           </div>
 
-          <div class="check-result" id="ticket-check-result" aria-live="polite">
-            <p class="muted">选择彩种并填写期号、号码后，可查询对应期开奖与奖级。</p>
-          </div>
+          <div class="check-result is-empty" id="ticket-check-result" aria-live="polite"></div>
 
           <div class="prize-rules" id="prize-rules"></div>
         </section>
@@ -114,7 +91,6 @@
           <button class="primary-action" id="generate-button" type="button">生成号码</button>
 
           <div class="ticket-card" id="ticket-card" aria-live="polite">
-            <p class="muted">选择彩种和模式后，点击生成号码。</p>
           </div>
 
         </section>
@@ -123,6 +99,10 @@
           <div class="section-heading">
             <span>开奖数据</span>
             <strong id="latest-issue">以官方公告为准</strong>
+          </div>
+          <div class="segmented" role="group" aria-label="选择开奖数据彩种">
+            <button class="segment is-active" data-analysis-type="ssq" type="button">双色球</button>
+            <button class="segment" data-analysis-type="dlt" type="button">大乐透</button>
           </div>
           <div id="latest-draw" class="latest-draw"></div>
           <div id="analysis-summary" class="analysis-summary"></div>
@@ -180,6 +160,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=20260607-bottom-polish"></script>
+    <script type="module" src="app.js?v=20260609-copy-analysis"></script>
   </body>
 </html>

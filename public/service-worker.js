@@ -1,26 +1,27 @@
-const CACHE_NAME = "lottery-h5-v9";
+const CACHE_NAME = "lottery-h5-v12";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
   "./",
-  "styles.css?v=20260607-bottom-polish",
-  "app.js?v=20260607-bottom-polish",
+  "styles.css?v=20260609-copy-analysis",
+  "app.js?v=20260609-copy-analysis",
   "manifest.webmanifest",
   "icon.svg",
   "zanshang.png",
   "zhifubaozanshang.png",
-  "src/compliance.mjs?v=20260607-bottom-polish",
-  "src/drawAnalysis.mjs?v=20260607-bottom-polish",
-  "src/dltHistory.mjs?v=20260607-bottom-polish",
-  "src/entitlements.mjs?v=20260607-bottom-polish",
-  "src/lotteryCatalog.mjs?v=20260607-bottom-polish",
-  "src/numberGenerator.mjs?v=20260607-bottom-polish",
-  "src/prizeRules.mjs?v=20260607-bottom-polish",
-  "src/recommendationTheory.mjs?v=20260607-bottom-polish",
-  "src/sampleDraws.mjs?v=20260607-bottom-polish",
-  "src/simulationTracker.mjs?v=20260607-bottom-polish",
-  "src/ssqHistory.mjs?v=20260607-bottom-polish",
-  "src/ticketCheck.mjs?v=20260607-bottom-polish",
+  "src/compliance.mjs?v=20260609-copy-analysis",
+  "src/drawAnalysis.mjs?v=20260609-copy-analysis",
+  "src/dltHistory.mjs?v=20260609-copy-analysis",
+  "src/entitlements.mjs?v=20260609-copy-analysis",
+  "src/lotteryCatalog.mjs?v=20260609-copy-analysis",
+  "src/numberGenerator.mjs?v=20260609-copy-analysis",
+  "src/prizeRules.mjs?v=20260609-copy-analysis",
+  "src/redeemableDraws.mjs?v=20260609-copy-analysis",
+  "src/recommendationTheory.mjs?v=20260609-copy-analysis",
+  "src/sampleDraws.mjs?v=20260609-copy-analysis",
+  "src/simulationTracker.mjs?v=20260609-copy-analysis",
+  "src/ssqHistory.mjs?v=20260609-copy-analysis",
+  "src/ticketCheck.mjs?v=20260609-copy-analysis",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {
