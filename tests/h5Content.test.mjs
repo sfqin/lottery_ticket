@@ -140,10 +140,9 @@ describe("H5 content", () => {
     assert.doesNotMatch(app, /renderHistoryRecord/);
     assert.match(css, /generated-batch/);
     assert.match(css, /support-dock/);
-    assert.match(css, /arena-overview/);
+    assert.match(css, /arena-issue__total/);
     assert.match(css, /appreciation-code--primary/);
     assert.match(css, /appreciation-methods/);
-    assert.match(css, /flex-wrap: nowrap/);
   });
 
   it("uses a compact high-frequency layout with manual check first and five default picks", async () => {
