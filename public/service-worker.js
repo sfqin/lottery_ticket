@@ -1,28 +1,28 @@
-const CACHE_NAME = "lottery-h5-v20";
+const CACHE_NAME = "lottery-h5-v27";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
   "./",
-  "styles.css?v=20260609-mobile-polish",
-  "app.js?v=20260609-mobile-polish",
+  "styles.css?v=20260609-arena-clean",
+  "app.js?v=20260609-arena-clean",
   "manifest.webmanifest",
   "icon.svg",
   "zanshang.png",
   "zhifubaozanshang.png",
-  "src/compliance.mjs?v=20260609-mobile-polish",
-  "src/drawAnalysis.mjs?v=20260609-mobile-polish",
-  "src/dltHistory.mjs?v=20260609-mobile-polish",
-  "src/entitlements.mjs?v=20260609-mobile-polish",
-  "src/lotteryCatalog.mjs?v=20260609-mobile-polish",
-  "src/numberGenerator.mjs?v=20260609-mobile-polish",
-  "src/prizeRules.mjs?v=20260609-mobile-polish",
-  "src/redeemableDraws.mjs?v=20260609-mobile-polish",
-  "src/recommendationTheory.mjs?v=20260609-mobile-polish",
-  "src/sampleDraws.mjs?v=20260609-mobile-polish",
-  "src/simulationTracker.mjs?v=20260609-mobile-polish",
-  "src/ssqHistory.mjs?v=20260609-mobile-polish",
-  "src/ticketCheck.mjs?v=20260609-mobile-polish",
-  "src/strategyArena.mjs?v=20260609-mobile-polish",
+  "src/compliance.mjs?v=20260609-arena-clean",
+  "src/drawAnalysis.mjs?v=20260609-arena-clean",
+  "src/dltHistory.mjs?v=20260609-arena-clean",
+  "src/entitlements.mjs?v=20260609-arena-clean",
+  "src/lotteryCatalog.mjs?v=20260609-arena-clean",
+  "src/numberGenerator.mjs?v=20260609-arena-clean",
+  "src/prizeRules.mjs?v=20260609-arena-clean",
+  "src/redeemableDraws.mjs?v=20260609-arena-clean",
+  "src/recommendationTheory.mjs?v=20260609-arena-clean",
+  "src/sampleDraws.mjs?v=20260609-arena-clean",
+  "src/simulationTracker.mjs?v=20260609-arena-clean",
+  "src/ssqHistory.mjs?v=20260609-arena-clean",
+  "src/ticketCheck.mjs?v=20260609-arena-clean",
+  "src/strategyArena.mjs?v=20260609-arena-clean",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {

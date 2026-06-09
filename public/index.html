@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20260609-mobile-polish" />
+    <link rel="stylesheet" href="styles.css?v=20260609-arena-clean" />
   </head>
   <body>
     <main class="shell">
@@ -118,22 +118,21 @@
         </section>
       </section>
 
-      <section class="support-dock" aria-label="策略擂台和赞赏">
-        <section class="panel arena-panel">
-          <div class="section-heading">
-            <span>策略擂台</span>
-            <strong>5 策略 · 每策略 5 注</strong>
-          </div>
-          <div class="segmented" role="group" aria-label="选择策略擂台彩种">
-            <button class="segment is-active" data-arena-type="ssq" type="button">双色球</button>
-            <button class="segment" data-arena-type="dlt" type="button">大乐透</button>
-          </div>
-          <div id="arena-list" class="arena-list">
-            <p class="muted">正在加载策略擂台数据...</p>
-          </div>
-          <p class="fine-print">系统在每期开奖后自动为下一期生成 5 种策略号码，并在下次开奖后复盘命中情况。仅供娱乐参考，不构成中奖预测。</p>
-        </section>
+      <section class="panel arena-panel" aria-label="策略擂台">
+        <div class="section-heading">
+          <span>策略擂台</span>
+          <strong>5 策略 · 每策略 5 注</strong>
+        </div>
+        <div class="segmented" role="group" aria-label="选择策略擂台彩种">
+          <button class="segment is-active" data-arena-type="ssq" type="button">双色球</button>
+          <button class="segment" data-arena-type="dlt" type="button">大乐透</button>
+        </div>
+        <div id="arena-list" class="arena-list">
+          <p class="muted">正在加载策略擂台数据...</p>
+        </div>
+      </section>
 
+      <section class="support-dock" aria-label="赞赏">
         <section class="panel appreciation-panel">
           <div class="section-heading">
             <span>赞赏支持</span>
@@ -165,6 +164,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=20260609-mobile-polish"></script>
+    <script type="module" src="app.js?v=20260609-arena-clean"></script>
   </body>
 </html>
