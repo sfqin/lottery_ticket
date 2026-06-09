@@ -30,6 +30,7 @@ select,
 input,
 textarea {
   font: inherit;
+  font-size: 16px;
 }
 
 button,
@@ -391,8 +392,9 @@ textarea {
 .draw-selector-field select {
   min-height: 46px;
   border-color: #b8c4d6;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .draw-selector-field select:focus {
@@ -640,7 +642,7 @@ textarea {
   background: #fff5f6;
   color: var(--red);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -676,7 +678,8 @@ textarea {
   border-width: 2px;
   border-radius: 999px;
   font-weight: 900;
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .number-box--red,

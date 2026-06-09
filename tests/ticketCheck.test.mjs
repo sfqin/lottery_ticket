@@ -101,17 +101,20 @@ describe("ticket check", () => {
     const result = checkTicketLinesByIssue({
       typeId: "ssq",
       issue: "2026063",
-      ticketText: "1) 08 13 17 21 24 29 + 03\n2) 01 02 04 05 06 07 + 16",
+      ticketText: "1) 08 13 17 21 24 29 + 03\n2) 08 13 17 21 01 02 + 03\n3) 01 02 04 05 06 07 + 16",
       draws,
     });
 
     assert.equal(result.found, true);
-    assert.equal(result.lines.length, 2);
+    assert.equal(result.lines.length, 3);
     assert.equal(result.lines[0].evaluation.tierName, "一等奖");
+    assert.equal(result.lines[0].evaluation.prizeLabel, "浮动奖金");
     assert.deepEqual(result.lines[0].matchedNumbers.red, [8, 13, 17, 21, 24, 29]);
     assert.deepEqual(result.lines[0].matchedNumbers.blue, [3]);
-    assert.equal(result.lines[1].evaluation.hit, false);
-    assert.deepEqual(result.lines[1].matchedNumbers.red, []);
+    assert.equal(result.lines[1].evaluation.tierName, "四等奖");
+    assert.equal(result.lines[1].evaluation.prizeLabel, "200元");
+    assert.equal(result.lines[2].evaluation.hit, false);
+    assert.deepEqual(result.lines[2].matchedNumbers.red, []);
   });
 
   it("reports missing issues without evaluating the ticket", () => {

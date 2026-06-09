@@ -1,16 +1,16 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260609-copy-analysis";
-import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260609-copy-analysis";
-import { createEntitlementState } from "./src/entitlements.mjs?v=20260609-copy-analysis";
-import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260609-copy-analysis";
-import { generateTicket } from "./src/numberGenerator.mjs?v=20260609-copy-analysis";
-import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260609-copy-analysis";
-import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260609-copy-analysis";
-import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260609-copy-analysis";
-import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-copy-analysis";
-import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-copy-analysis";
-import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-copy-analysis";
-import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260609-copy-analysis";
-import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-copy-analysis";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260609-mobile-polish";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260609-mobile-polish";
+import { createEntitlementState } from "./src/entitlements.mjs?v=20260609-mobile-polish";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260609-mobile-polish";
+import { generateTicket } from "./src/numberGenerator.mjs?v=20260609-mobile-polish";
+import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260609-mobile-polish";
+import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260609-mobile-polish";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260609-mobile-polish";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-mobile-polish";
+import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-mobile-polish";
+import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-mobile-polish";
+import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260609-mobile-polish";
+import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-mobile-polish";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
@@ -144,7 +144,7 @@ function initialize() {
   elements.checkAddRow.addEventListener("click", () => {
     state.checkRows[state.checkTypeId].push(createBlankCheckRow(state.checkTypeId));
     state.checkResult = null;
-    renderTicketCheck({ focusLastRow: true });
+    renderTicketCheck();
   });
 
   elements.appreciationMethods.forEach((button) => {
@@ -386,7 +386,7 @@ function renderTicketCheck(options = {}) {
         .map(
           ({ draw }) => `
             <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedIssue ? "selected" : ""}>
-              ${escapeHtml(draw.issue)}期，${escapeHtml(draw.date ?? "")}开奖
+              ${escapeHtml(formatDrawOptionLabel(draw))}
             </option>
           `,
         )
@@ -443,7 +443,7 @@ function renderCheckedLine(typeId, line) {
     <div class="check-line${hitClass}">
       <div class="check-line__meta">
         <b>第 ${line.index} 注 · ${escapeHtml(line.evaluation.tierName)}</b>
-        <small>${escapeHtml(prizeAmount)}</small>
+        <small class="prize-amount">${escapeHtml(prizeAmount)}</small>
         <span>${escapeHtml(formatCompactMatchText(type, line.evaluation.matches))}</span>
       </div>
       ${renderCheckedBalls(formatted, type, line.matchedNumbers)}
@@ -783,7 +783,7 @@ function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
           .map(
             ({ draw }) => `
               <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedDraw?.issue ? "selected" : ""}>
-                ${escapeHtml(draw.issue)}期，${escapeHtml(draw.date ?? "")}开奖
+                ${escapeHtml(formatDrawOptionLabel(draw))}
               </option>
             `,
           )
@@ -792,6 +792,14 @@ function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
     </label>
     <p class="fine-print">默认选择最新一期；切换期号后，上方开奖号码同步展示。兑奖有效期按开奖日起 60 个自然日估算，实际以官方公告为准。</p>
   `;
+}
+
+function formatDrawOptionLabel(draw) {
+  return `${draw.issue}期 ${formatSlashDate(draw.date)}开奖`;
+}
+
+function formatSlashDate(dateText) {
+  return String(dateText ?? "").replaceAll("-", "/");
 }
 
 function getSelectedDraw(typeId, redeemable, fallbackDraw) {

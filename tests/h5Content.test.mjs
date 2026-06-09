@@ -72,6 +72,8 @@ describe("H5 content", () => {
     assert.match(app, /renderCheckedLine/);
     assert.match(app, /renderCheckedBalls/);
     assert.match(app, /formatPrizeAmount/);
+    assert.match(app, /line\.evaluation\.prizeLabel/);
+    assert.match(app, /class="prize-amount"/);
     assert.match(app, /formatCheckSummary/);
     assert.match(app, /formatCompactMatchText/);
     const checkResultRenderer = app.slice(
@@ -85,6 +87,18 @@ describe("H5 content", () => {
     assert.match(css, /color: #b7791f/);
   });
 
+  it("keeps mobile manual check controls from triggering iOS input zoom", async () => {
+    const [app, css] = await Promise.all([
+      readPublicFile("app.js"),
+      readPublicFile("styles.css"),
+    ]);
+
+    assert.doesNotMatch(app, /renderTicketCheck\(\{ focusLastRow: true \}\)/);
+    assert.match(css, /font-size: 16px/);
+    assert.match(css, /\.number-box \{[\s\S]*font-size: 16px/);
+    assert.match(css, /\.draw-selector-field select \{[\s\S]*font-size: 16px/);
+  });
+
   it("shows redeemable draw periods and official prize rule tables", async () => {
     const [html, app] = await Promise.all([
       readPublicFile("index.html"),
@@ -95,6 +109,9 @@ describe("H5 content", () => {
     assert.match(html, /兑奖有效期/);
     assert.match(app, /renderRedeemableDraws/);
     assert.match(app, /redeemable-issue-select/);
+    assert.match(app, /formatDrawOptionLabel/);
+    assert.match(app, /formatSlashDate/);
+    assert.doesNotMatch(app, /期，\$\{escapeHtml\(draw\.date/);
     assert.match(app, /getRedeemableDraws/);
     assert.match(app, /getSelectedDraw/);
     assert.match(app, /getPrizeRuleSummary/);
