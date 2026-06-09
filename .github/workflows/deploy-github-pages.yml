@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/h5-mvp
   workflow_dispatch:
 
 permissions:
