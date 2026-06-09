@@ -73,9 +73,10 @@ textarea:focus-visible {
 
 h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 24px;
   line-height: 1.15;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .hero__copy {
@@ -177,6 +178,16 @@ textarea {
   border-radius: 8px;
   background: #fff;
   color: var(--text);
+}
+
+select {
+  font-size: 14px;
+}
+
+select option {
+  font-size: 14px;
+  padding: 4px 8px;
+  line-height: 1.3;
 }
 
 textarea {
@@ -392,7 +403,7 @@ textarea {
 .draw-selector-field select {
   min-height: 46px;
   border-color: #b8c4d6;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -732,7 +743,7 @@ textarea {
 
 .check-line__meta {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: baseline;
   min-width: 0;
@@ -746,6 +757,7 @@ textarea {
 }
 
 .check-line__meta small {
+  flex: 1 1 auto;
   color: #b7791f;
   font-size: 11px;
   font-weight: 900;
@@ -753,9 +765,12 @@ textarea {
 }
 
 .check-line__meta b {
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 14px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .check-summary {
@@ -1083,6 +1098,10 @@ textarea {
 @media (max-width: 520px) {
   .shell {
     padding: 12px;
+  }
+
+  h1 {
+    font-size: 20px;
   }
 
   .panel {

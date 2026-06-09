@@ -1,4 +1,4 @@
-const CACHE_NAME = "lottery-h5-v13";
+const CACHE_NAME = "lottery-h5-v18";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [

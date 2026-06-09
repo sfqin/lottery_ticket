@@ -384,11 +384,8 @@ function renderTicketCheck(options = {}) {
   elements.checkIssue.innerHTML = redeemableDraws.length
     ? redeemableDraws
         .map(
-          ({ draw }) => `
-            <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedIssue ? "selected" : ""}>
-              ${escapeHtml(formatDrawOptionLabel(draw))}
-            </option>
-          `,
+          ({ draw }) =>
+            `<option value="${escapeHtml(draw.issue)}"${draw.issue === selectedIssue ? " selected" : ""}>${escapeHtml(formatDrawOptionLabel(draw))}</option>`,
         )
         .join("")
     : `<option value="">暂无可兑奖期号</option>`;
@@ -781,11 +778,8 @@ function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
       <select id="redeemable-issue-select">
         ${redeemable
           .map(
-            ({ draw }) => `
-              <option value="${escapeHtml(draw.issue)}" ${draw.issue === selectedDraw?.issue ? "selected" : ""}>
-                ${escapeHtml(formatDrawOptionLabel(draw))}
-              </option>
-            `,
+            ({ draw }) =>
+              `<option value="${escapeHtml(draw.issue)}"${draw.issue === selectedDraw?.issue ? " selected" : ""}>${escapeHtml(formatDrawOptionLabel(draw))}</option>`,
           )
           .join("")}
       </select>
@@ -795,7 +789,13 @@ function renderRedeemableDraws(typeId, redeemable, selectedDraw) {
 }
 
 function formatDrawOptionLabel(draw) {
-  return `${draw.issue}期 ${formatSlashDate(draw.date)}开奖`;
+  return `${draw.issue}期 ${formatShortMonthDay(draw.date)}开奖`;
+}
+
+function formatShortMonthDay(dateText) {
+  const text = String(dateText ?? "");
+  const match = text.match(/(\d{1,2})[-/](\d{1,2})$/);
+  return match ? `${match[1]}/${match[2]}` : formatSlashDate(text);
 }
 
 function formatSlashDate(dateText) {
