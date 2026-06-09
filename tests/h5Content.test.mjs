@@ -165,6 +165,19 @@ describe("H5 content", () => {
     assert.match(css, /draw-selector-field/);
   });
 
+  it("defaults number generation to the latest-100-draw trend reference mode", async () => {
+    const [html, app, generator] = await Promise.all([
+      readPublicFile("index.html"),
+      readPublicFile("app.js"),
+      readRepoFile("src/numberGenerator.mjs"),
+    ]);
+
+    assert.match(html, /<option value="trend" selected>趋势参考<\/option>/);
+    assert.match(app, /strategy: "trend"/);
+    assert.match(app, /trend: "趋势参考"/);
+    assert.match(generator, /最近 100 期/);
+  });
+
   it("supports copying the current generated batch in a compact text format", async () => {
     const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),

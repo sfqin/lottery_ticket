@@ -7,7 +7,7 @@ A mobile-first H5 lottery helper for China Sports Lottery Super Lotto and Welfar
 ## Features
 
 - **Smart number generation**: Generate 1, 3, 5, or 10 tickets for Double Color Ball or Super Lotto.
-- **Generation strategies**: Balanced, random, historical-data reference, and tier-weighted theory modes.
+- **Generation strategies**: Trend reference is the default mode, with balanced, random, historical-data reference, and tier-weighted theory modes also available.
 - **Manual ticket check**: Select a draw issue, enter ticket numbers, and check whether the ticket hits a prize tier.
 - **Multi-stake checking**: Check multiple ticket lines at once and highlight matched numbers.
 - **Draw data**: Show the latest draw, redeemable draw window, and compact statistical analysis.
@@ -23,6 +23,14 @@ A mobile-first H5 lottery helper for China Sports Lottery Super Lotto and Welfar
 | Super Lotto | 5 front numbers from 1-35 | 2 back numbers from 1-12 |
 
 The shared rule source lives in `src/lotteryCatalog.mjs`. Generation, validation, and ticket checking all use the same configuration.
+
+## Generation Strategies
+
+- **Trend reference**: Default mode. It combines the full draw history with the latest 100 draws, using hot/cold numbers, omissions, parity, region distribution, and long-term frequency as entertainment reference signals.
+- **Balanced**: Picks from valid random candidates with a more even structure.
+- **Random**: Generates legal numbers only from the official lottery ranges.
+- **Historical-data reference**: Uses historical number frequency without treating history as future proof.
+- **Tier-weighted theory**: Combines official prize tier structure, historical data, and low-weight random noise.
 
 ## Local Development
 

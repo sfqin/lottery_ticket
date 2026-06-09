@@ -16,7 +16,7 @@ const today = new Date().toISOString().slice(0, 10);
 const state = {
   typeId: "ssq",
   analysisTypeId: "ssq",
-  strategy: "balanced",
+  strategy: "trend",
   generateCount: 5,
   entitlement: loadEntitlement(),
   history: loadHistory(),
@@ -881,6 +881,7 @@ function persist() {
 
 function labelStrategy(strategy) {
   return {
+    trend: "趋势参考",
     balanced: "均衡生成",
     random: "随机生成",
     data: "数据参考",
