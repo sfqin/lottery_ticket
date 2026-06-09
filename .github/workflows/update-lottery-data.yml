@@ -27,14 +27,16 @@ jobs:
         run: |
           npm run import:ssq
           npm run import:dlt
+      - name: Generate strategy arena predictions
+        run: npm run generate:arena
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data/ssq-history.csv data/dlt-history.csv; then
+          if git diff --quiet -- data/ssq-history.csv data/dlt-history.csv data/ssq-arena.csv data/dlt-arena.csv; then
             echo "No lottery data changes."
           else
-            git add data/ssq-history.csv data/dlt-history.csv
-            git commit -m "Update lottery history data"
+            git add data/ssq-history.csv data/dlt-history.csv data/ssq-arena.csv data/dlt-arena.csv
+            git commit -m "Update lottery history data and strategy arena"
             git push origin HEAD:main
           fi

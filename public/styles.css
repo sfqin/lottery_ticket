@@ -511,8 +511,126 @@ textarea {
 }
 
 .support-dock .history-panel,
+.support-dock .arena-panel,
 .support-dock .appreciation-panel {
   margin-top: 0;
+}
+
+.arena-list {
+  display: grid;
+  gap: 10px;
+}
+
+.arena-issue {
+  border: 1px solid #d7e0eb;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.arena-issue__summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.arena-issue__summary::-webkit-details-marker {
+  display: none;
+}
+
+.arena-issue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.arena-issue__head strong {
+  font-size: 14px;
+  color: #1d2530;
+}
+
+.arena-issue__status {
+  font-size: 12px;
+  color: #5a6b80;
+}
+
+.arena-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.arena-overview-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #f1f5fa;
+  font-size: 12px;
+}
+
+.arena-overview-item.is-hit {
+  background: rgba(38, 122, 87, 0.12);
+}
+
+.arena-overview-item__label {
+  color: #4a5a6e;
+}
+
+.arena-overview-item__prize {
+  color: #1d2530;
+  font-weight: 700;
+}
+
+.arena-detail {
+  border-top: 1px solid #eef2f7;
+  padding: 10px 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.arena-strategy {
+  display: grid;
+  gap: 8px;
+}
+
+.arena-strategy__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.arena-strategy__lines {
+  display: grid;
+  gap: 6px;
+}
+
+.arena-line {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f9fbfd;
+}
+
+.arena-line--hit {
+  background: rgba(38, 122, 87, 0.1);
+}
+
+.arena-line__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #5a6b80;
 }
 
 .appreciation-panel {

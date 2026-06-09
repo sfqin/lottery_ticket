@@ -9,13 +9,15 @@ import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=202606
 import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-mobile-polish";
 import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-mobile-polish";
 import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-mobile-polish";
-import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260609-mobile-polish";
+import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260609-mobile-polish";
 import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-mobile-polish";
+import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260609-mobile-polish";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
   typeId: "ssq",
   analysisTypeId: "ssq",
+  arenaTypeId: "ssq",
   strategy: "trend",
   generateCount: 5,
   entitlement: loadEntitlement(),
@@ -42,6 +44,8 @@ const state = {
     dlt: false,
   },
   draws: SAMPLE_DRAWS,
+  arenaEntries: [],
+  arenaNotice: "正在加载策略擂台数据...",
   dataNotice: {
     dlt: "正在加载大乐透历史开奖数据...",
     ssq: "正在加载双色球历史开奖数据...",
@@ -61,8 +65,8 @@ const elements = {
   latestDraw: document.querySelector("#latest-draw"),
   analysis: document.querySelector("#analysis-summary"),
   redeemableDraws: document.querySelector("#redeemable-draw-list"),
-  historyCount: document.querySelector("#history-count"),
-  history: document.querySelector("#history-list"),
+  arenaTypeButtons: [...document.querySelectorAll("[data-arena-type]")],
+  arenaList: document.querySelector("#arena-list"),
   checkTypeButtons: [...document.querySelectorAll("[data-check-type]")],
   checkIssue: document.querySelector("#ticket-issue-select"),
   checkFields: document.querySelector("#ticket-check-fields"),
@@ -93,6 +97,13 @@ function initialize() {
     button.addEventListener("click", () => {
       state.analysisTypeId = button.dataset.analysisType;
       renderAnalysis();
+    });
+  });
+
+  elements.arenaTypeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.arenaTypeId = button.dataset.arenaType;
+      renderArena();
     });
   });
 
@@ -237,6 +248,25 @@ async function loadHistoricalDraws() {
 
   state.draws = [...loadedDraws, ...fallbackDraws];
   render();
+  await loadArenaEntries();
+}
+
+async function loadArenaEntries() {
+  const entries = [];
+
+  for (const path of ["data/ssq-arena.csv", "data/dlt-arena.csv"]) {
+    try {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${path} request failed: ${response.status}`);
+      entries.push(...parseArenaCsv(await response.text()));
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+
+  state.arenaEntries = entries;
+  state.arenaNotice = entries.length ? "" : "暂无策略擂台数据，等待下一次开奖后自动生成。";
+  renderArena();
 }
 
 async function loadCsvDraws(path, parser) {
@@ -257,7 +287,7 @@ function render(latestGenerated = null) {
   });
 
   renderAnalysis();
-  renderHistory();
+  renderArena();
   renderTicketCheck();
   renderAppreciation();
 
@@ -279,10 +309,6 @@ function renderAnalysis() {
   const redeemableDraws = getRedeemableDraws(typeDraws, new Date());
   const latest = getSelectedDraw(state.analysisTypeId, redeemableDraws, analysis.latest);
   const theory = buildTierWeightedTheory({ typeId: state.analysisTypeId, draws: typeDraws });
-  const simulationSummary = summarizeSimulationRecords(
-    state.analysisTypeId,
-    state.history.map((item) => item.simulation).filter(Boolean),
-  );
 
   elements.analysisTypeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.analysisType === state.analysisTypeId);
@@ -312,49 +338,92 @@ function renderAnalysis() {
         <div class="stat"><b>奇偶累计</b><span>${analysis.parity[firstGroup].odd}:${analysis.parity[firstGroup].even}</span></div>
       </div>
       ${renderTheorySummary(theory)}
-      ${renderSimulationSummary(simulationSummary, type)}
     </details>
   `;
   elements.redeemableDraws.innerHTML = renderRedeemableDraws(state.analysisTypeId, redeemableDraws, latest);
 }
 
-function renderHistory() {
-  elements.historyCount.textContent = `${state.history.length} 组`;
-  elements.history.innerHTML = state.history.length
-    ? `<ol class="history-list-items">${state.history.slice(0, 1).map(renderHistoryRecord).join("")}</ol>`
-    : `<p class="muted">生成后的号码会保存在本次浏览记录中。</p>`;
+function renderArena() {
+  elements.arenaTypeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.arenaType === state.arenaTypeId);
+  });
+
+  const summary = summarizeArena(state.arenaTypeId, state.arenaEntries);
+
+  if (!summary.length) {
+    elements.arenaList.innerHTML = `<p class="muted">${escapeHtml(state.arenaNotice || "暂无策略擂台数据。")}</p>`;
+    return;
+  }
+
+  elements.arenaList.innerHTML = summary.map(renderArenaIssue).join("");
 }
 
-function renderHistoryRecord(item) {
-  const type = getLotteryType(item.typeId);
-  const simulation = item.simulation?.evaluation;
-  const simulationText = simulation
-    ? `${simulation.tierName} · ${simulation.matchText}`
-    : "待复盘";
+function renderArenaIssue(issueSummary) {
+  const type = getLotteryType(issueSummary.typeId);
+  const statusText = issueSummary.evaluated ? "已开奖复盘" : "待开奖";
+  const overview = issueSummary.strategies
+    .map(
+      (strategy) => `
+        <div class="arena-overview-item${strategy.evaluated && strategy.totalYuan > 0 ? " is-hit" : ""}">
+          <span class="arena-overview-item__label">${escapeHtml(strategy.label)}</span>
+          <strong class="arena-overview-item__prize">${escapeHtml(strategy.prizeText)}</strong>
+        </div>
+      `,
+    )
+    .join("");
 
   return `
-    <li class="history-record">
-      <div class="history-record__meta">
-        <div>
-          <strong>${escapeHtml(type.shortName)} · ${labelStrategy(item.strategy)}</strong>
-          <span>${escapeHtml(item.createdAt ?? "")}</span>
+    <details class="arena-issue">
+      <summary class="arena-issue__summary">
+        <div class="arena-issue__head">
+          <strong>${escapeHtml(type.shortName)} ${escapeHtml(issueSummary.issue)} 期</strong>
+          <span class="arena-issue__status">${escapeHtml(statusText)}</span>
         </div>
-        <em>${escapeHtml(simulationText)}</em>
+        <div class="arena-overview">${overview}</div>
+      </summary>
+      <div class="arena-detail">
+        ${issueSummary.strategies.map((strategy) => renderArenaStrategyDetail(issueSummary.typeId, strategy)).join("")}
       </div>
-      <div class="history-record__balls">
-        ${renderBalls(formatTicket(item.typeId, item.ticket), type)}
-      </div>
-      <details class="compact-details">
-        <summary class="detail-summary">查看生成理由和复盘</summary>
-        <p>${escapeHtml(item.explanation.summary)}</p>
-        <ul class="compact-list">
-          ${item.explanation.items.map((detail) => `<li>${escapeHtml(detail)}</li>`).join("")}
-        </ul>
-        ${item.simulation ? renderSimulation(item.simulation, false) : ""}
-        <p class="fine-print">${escapeHtml(formatTicketText(item.typeId, item.ticket))}</p>
-      </details>
-    </li>
+    </details>
   `;
+}
+
+function renderArenaStrategyDetail(typeId, strategy) {
+  const type = getLotteryType(typeId);
+  const lines = strategy.lines
+    .map((entry) => {
+      const formatted = formatTicket(typeId, entry.ticket);
+      const prizeText = entry.evaluated
+        ? `${escapeHtml(entry.tierName)} · ${escapeHtml(formatArenaLinePrize(entry))}`
+        : "待开奖";
+      const hitClass = entry.evaluated && entry.tier > 0 ? " arena-line--hit" : "";
+      return `
+        <div class="arena-line${hitClass}">
+          <div class="arena-line__meta">
+            <b>第 ${entry.line} 注</b>
+            <span>${prizeText}</span>
+          </div>
+          ${renderBalls(formatted, type)}
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="arena-strategy">
+      <div class="arena-strategy__head">
+        <b>${escapeHtml(strategy.label)}</b>
+        <strong>${escapeHtml(strategy.prizeText)}</strong>
+      </div>
+      <div class="arena-strategy__lines">${lines}</div>
+    </div>
+  `;
+}
+
+function formatArenaLinePrize(entry) {
+  if (entry.prizeLabel === "未命中" || entry.tier === 0) return "未中奖";
+  if (entry.prizeLabel === "浮动奖金") return "浮动奖金";
+  return entry.prizeLabel || "未中奖";
 }
 
 function renderAppreciation() {
@@ -488,24 +557,6 @@ function renderTheorySummary(theory) {
         ${theory.methodNotes.slice(0, 2).map((note) => `<li>${escapeHtml(note)}</li>`).join("")}
       </ul>
       <p class="fine-print">${escapeHtml(theory.complianceNote)}</p>
-    </div>
-  `;
-}
-
-function renderSimulationSummary(summary, type) {
-  const groupNames = Object.keys(type.groups);
-  const primaryLabel = type.groups[groupNames[0]].label;
-  const secondaryLabel = type.groups[groupNames[1]].label;
-  return `
-    <div class="tracking-summary">
-      <b>模拟复盘</b>
-      <div class="tracking-line">
-        <span>记录 ${summary.total} 组</span>
-        <span>命中奖级 ${summary.hitCount} 组</span>
-        <span>最佳 ${escapeHtml(summary.bestTierName)}</span>
-      </div>
-      <p>${escapeHtml(primaryLabel)}平均匹配 ${summary.averagePrimaryMatches} 个，${escapeHtml(secondaryLabel)}平均匹配 ${summary.averageSecondaryMatches} 个。</p>
-      <p class="fine-print">${escapeHtml(summary.lesson)}</p>
     </div>
   `;
 }
@@ -887,14 +938,6 @@ function labelStrategy(strategy) {
     data: "数据参考",
     theory: "分层理论模型",
   }[strategy];
-}
-
-function formatTicketText(typeId, ticket) {
-  const type = getLotteryType(typeId);
-  const formatted = formatTicket(typeId, ticket);
-  return Object.entries(type.groups)
-    .map(([groupName, rule]) => `${rule.label}:${formatted[groupName].join(" ")}`)
-    .join(" / ");
 }
 
 function registerServiceWorker() {

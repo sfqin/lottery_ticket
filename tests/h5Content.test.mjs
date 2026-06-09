@@ -120,22 +120,27 @@ describe("H5 content", () => {
     assert.match(app, /60 个自然日/);
   });
 
-  it("renders generated history as a compact analysis list", async () => {
+  it("renders the strategy arena overview with expandable per-strategy detail", async () => {
     const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
       readPublicFile("styles.css"),
     ]);
 
-    assert.match(html, /仅供数据分析/);
-    assert.match(html, /往期分析/);
-    assert.match(html, /support-dock/);
-    assert.match(app, /renderHistoryRecord/);
-    assert.match(app, /slice\(0, 1\)/);
-    assert.match(app, /查看生成理由和复盘/);
-    assert.match(app, /history-record__balls/);
+    assert.match(html, /策略擂台/);
+    assert.match(html, /5 策略 · 每策略 5 注/);
+    assert.match(html, /data-arena-type="ssq"/);
+    assert.match(html, /data-arena-type="dlt"/);
+    assert.match(html, /id="arena-list"/);
+    assert.doesNotMatch(html, /往期分析/);
+    assert.match(app, /renderArena/);
+    assert.match(app, /summarizeArena/);
+    assert.match(app, /renderArenaStrategyDetail/);
+    assert.match(app, /loadArenaEntries/);
+    assert.doesNotMatch(app, /renderHistoryRecord/);
     assert.match(css, /generated-batch/);
     assert.match(css, /support-dock/);
+    assert.match(css, /arena-overview/);
     assert.match(css, /appreciation-code--primary/);
     assert.match(css, /appreciation-methods/);
     assert.match(css, /flex-wrap: nowrap/);

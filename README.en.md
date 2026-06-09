@@ -11,6 +11,7 @@ A mobile-first H5 lottery helper for China Sports Lottery Super Lotto and Welfar
 - **Manual ticket check**: Select a draw issue, enter ticket numbers, and check whether the ticket hits a prize tier.
 - **Multi-stake checking**: Check multiple ticket lines at once and highlight matched numbers.
 - **Draw data**: Show the latest draw, redeemable draw window, and compact statistical analysis.
+- **Strategy arena**: After each draw, 5 strategies each generate 5 tickets for the next issue; the previous issue is automatically reviewed after the next draw, with a per-strategy overview that expands into per-ticket detail.
 - **Prize rules**: Built-in official prize tier rules and fixed-prize labels.
 - **Scheduled data updates**: GitHub Actions imports the latest draw data after scheduled draw nights.
 - **PWA support**: Includes a web manifest and service worker for home-screen installation.
@@ -68,11 +69,17 @@ Historical draw data is stored in:
 - `data/ssq-history.csv`
 - `data/dlt-history.csv`
 
+Strategy arena records are stored in:
+
+- `data/ssq-arena.csv`
+- `data/dlt-arena.csv`
+
 Manual import commands:
 
 ```bash
 npm run import:ssq
 npm run import:dlt
+npm run generate:arena
 ```
 
 GitHub Actions also updates the data automatically:
@@ -80,6 +87,7 @@ GitHub Actions also updates the data automatically:
 - Double Color Ball: after Tuesday, Thursday, and Sunday draw nights.
 - Super Lotto: after Monday, Wednesday, and Saturday draw nights.
 - A later retry job runs on draw nights to handle delayed data sources.
+- After each draw-data sync, the previous strategy tickets are reviewed and the next issue's strategy arena tickets are generated.
 
 See `.github/workflows/update-lottery-data.yml` for the schedule.
 
@@ -105,9 +113,9 @@ If the page does not update, check the GitHub Actions result and clear browser o
 
 ```text
 public/                  H5 page, styles, frontend entry, and PWA files
-src/                     Lottery rules, generator, ticket checker, draw analysis, prize rules
-data/                    Double Color Ball and Super Lotto history CSV files
-scripts/                 Historical data import scripts
+src/                     Lottery rules, generator, ticket checker, draw analysis, prize rules, strategy arena
+data/                    Double Color Ball and Super Lotto history and strategy arena CSV files
+scripts/                 Historical data import and strategy arena generation scripts
 tests/                   Node.js test suite
 .github/workflows/       Pages deployment and scheduled data update workflows
 server.mjs               Local static server

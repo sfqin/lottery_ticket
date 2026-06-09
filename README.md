@@ -11,6 +11,7 @@
 - **手动验票**：选择开奖期号后输入号码，查询是否命中奖级。
 - **多注核对**：一次核对多注号码，并高亮命中的红球、蓝球、前区和后区号码。
 - **开奖数据**：展示最新开奖、可兑奖期数和基础统计分析。
+- **策略擂台**：每期开奖后自动用 5 种策略各生成 5 注下一期号码，下次开奖后自动复盘命中情况，按策略展示概览，点开可查看每注详情。
 - **中奖规则**：内置双色球和大乐透官方奖级规则及固定奖金说明。
 - **历史数据自动更新**：通过 GitHub Actions 在开奖日自动抓取并提交最新开奖数据。
 - **PWA 支持**：包含 manifest 和 service worker，可添加到手机主屏幕。
@@ -68,11 +69,17 @@ npm test
 - `data/ssq-history.csv`
 - `data/dlt-history.csv`
 
+策略擂台记录存放在：
+
+- `data/ssq-arena.csv`
+- `data/dlt-arena.csv`
+
 可以手动更新：
 
 ```bash
 npm run import:ssq
 npm run import:dlt
+npm run generate:arena
 ```
 
 也可以依赖 GitHub Actions 自动更新：
@@ -80,6 +87,7 @@ npm run import:dlt
 - 双色球：周二、周四、周日开奖后抓取。
 - 大乐透：周一、周三、周六开奖后抓取。
 - 开奖日晚间会补抓一次，降低数据源延迟带来的影响。
+- 每次同步开奖数据后，会自动复盘上期策略号码并生成下一期策略擂台号码。
 
 自动更新配置见 `.github/workflows/update-lottery-data.yml`。
 
@@ -105,9 +113,9 @@ https://sfqin.github.io/lottery_ticket/
 
 ```text
 public/                  H5 页面、样式、前端入口、PWA 文件
-src/                     号码规则、生成器、验票、开奖分析、奖级规则
-data/                    双色球和大乐透历史开奖 CSV
-scripts/                 历史数据导入脚本
+src/                     号码规则、生成器、验票、开奖分析、奖级规则、策略擂台
+data/                    双色球和大乐透历史开奖与策略擂台 CSV
+scripts/                 历史数据导入与策略擂台生成脚本
 tests/                   Node.js 测试用例
 .github/workflows/       Pages 部署和开奖数据自动更新
 server.mjs               本地静态服务器

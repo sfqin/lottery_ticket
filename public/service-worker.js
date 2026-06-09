@@ -1,4 +1,4 @@
-const CACHE_NAME = "lottery-h5-v19";
+const CACHE_NAME = "lottery-h5-v20";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
@@ -22,6 +22,7 @@ const APP_SHELL = [
   "src/simulationTracker.mjs?v=20260609-mobile-polish",
   "src/ssqHistory.mjs?v=20260609-mobile-polish",
   "src/ticketCheck.mjs?v=20260609-mobile-polish",
+  "src/strategyArena.mjs?v=20260609-mobile-polish",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {

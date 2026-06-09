@@ -118,16 +118,20 @@
         </section>
       </section>
 
-      <section class="support-dock" aria-label="往期分析和赞赏">
-        <section class="panel history-panel">
+      <section class="support-dock" aria-label="策略擂台和赞赏">
+        <section class="panel arena-panel">
           <div class="section-heading">
-            <span>往期分析</span>
-            <strong id="history-count">0 组</strong>
+            <span>策略擂台</span>
+            <strong>5 策略 · 每策略 5 注</strong>
           </div>
-          <div id="history-list" class="history-list">
-            <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
+          <div class="segmented" role="group" aria-label="选择策略擂台彩种">
+            <button class="segment is-active" data-arena-type="ssq" type="button">双色球</button>
+            <button class="segment" data-arena-type="dlt" type="button">大乐透</button>
           </div>
-          <p class="fine-print">记录仅保存在本机浏览器，仅供数据分析，不构成中奖预测。</p>
+          <div id="arena-list" class="arena-list">
+            <p class="muted">正在加载策略擂台数据...</p>
+          </div>
+          <p class="fine-print">系统在每期开奖后自动为下一期生成 5 种策略号码，并在下次开奖后复盘命中情况。仅供娱乐参考，不构成中奖预测。</p>
         </section>
 
         <section class="panel appreciation-panel">
