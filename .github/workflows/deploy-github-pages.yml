@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # 数据更新 workflow 用 GITHUB_TOKEN push 的 commit 不会触发 on:push（防递归），
+  # 因此改用 workflow_run 监听其完成事件，确保新数据自动上线。
+  workflow_run:
+    workflows: ["Update lottery data"]
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -18,9 +24,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 当由数据 workflow 触发时，仅在其成功完成后才部署
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
