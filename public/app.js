@@ -1,17 +1,17 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260609-arena-clean";
-import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260609-arena-clean";
-import { createEntitlementState } from "./src/entitlements.mjs?v=20260609-arena-clean";
-import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260609-arena-clean";
-import { generateTicket } from "./src/numberGenerator.mjs?v=20260609-arena-clean";
-import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260609-arena-clean";
-import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260609-arena-clean";
-import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260609-arena-clean";
-import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-arena-clean";
-import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-arena-clean";
-import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-arena-clean";
-import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260609-arena-clean";
-import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-arena-clean";
-import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260609-arena-clean";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260614-cache-buster";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260614-cache-buster";
+import { createEntitlementState } from "./src/entitlements.mjs?v=20260614-cache-buster";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260614-cache-buster";
+import { generateTicket } from "./src/numberGenerator.mjs?v=20260614-cache-buster";
+import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260614-cache-buster";
+import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260614-cache-buster";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260614-cache-buster";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260614-cache-buster";
+import { parseDltCsv } from "./src/dltHistory.mjs?v=20260614-cache-buster";
+import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260614-cache-buster";
+import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260614-cache-buster";
+import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260614-cache-buster";
+import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260614-cache-buster";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
@@ -275,7 +275,7 @@ async function loadArenaEntries() {
 
   for (const path of ["data/ssq-arena.csv", "data/dlt-arena.csv"]) {
     try {
-      const response = await fetch(path, { cache: "no-store" });
+      const response = await fetch(withCacheBuster(path), { cache: "no-store" });
       if (!response.ok) throw new Error(`${path} request failed: ${response.status}`);
       entries.push(...parseArenaCsv(await response.text()));
     } catch (error) {
@@ -289,11 +289,17 @@ async function loadArenaEntries() {
 }
 
 async function loadCsvDraws(path, parser) {
-  const response = await fetch(path, { cache: "no-store" });
+  const response = await fetch(withCacheBuster(path), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`${path} request failed: ${response.status}`);
   }
   return parser(await response.text());
+}
+
+// 给数据请求拼接时间戳，绕过 GitHub Pages CDN（Fastly）边缘缓存，确保拉到最新 CSV
+function withCacheBuster(path) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}t=${Date.now()}`;
 }
 
 function render(latestGenerated = null) {

@@ -1,28 +1,28 @@
-const CACHE_NAME = "lottery-h5-v27";
+const CACHE_NAME = "lottery-h5-v28";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
   "./",
-  "styles.css?v=20260609-arena-clean",
-  "app.js?v=20260609-arena-clean",
+  "styles.css?v=20260614-cache-buster",
+  "app.js?v=20260614-cache-buster",
   "manifest.webmanifest",
   "icon.svg",
   "zanshang.png",
   "zhifubaozanshang.png",
-  "src/compliance.mjs?v=20260609-arena-clean",
-  "src/drawAnalysis.mjs?v=20260609-arena-clean",
-  "src/dltHistory.mjs?v=20260609-arena-clean",
-  "src/entitlements.mjs?v=20260609-arena-clean",
-  "src/lotteryCatalog.mjs?v=20260609-arena-clean",
-  "src/numberGenerator.mjs?v=20260609-arena-clean",
-  "src/prizeRules.mjs?v=20260609-arena-clean",
-  "src/redeemableDraws.mjs?v=20260609-arena-clean",
-  "src/recommendationTheory.mjs?v=20260609-arena-clean",
-  "src/sampleDraws.mjs?v=20260609-arena-clean",
-  "src/simulationTracker.mjs?v=20260609-arena-clean",
-  "src/ssqHistory.mjs?v=20260609-arena-clean",
-  "src/ticketCheck.mjs?v=20260609-arena-clean",
-  "src/strategyArena.mjs?v=20260609-arena-clean",
+  "src/compliance.mjs?v=20260614-cache-buster",
+  "src/drawAnalysis.mjs?v=20260614-cache-buster",
+  "src/dltHistory.mjs?v=20260614-cache-buster",
+  "src/entitlements.mjs?v=20260614-cache-buster",
+  "src/lotteryCatalog.mjs?v=20260614-cache-buster",
+  "src/numberGenerator.mjs?v=20260614-cache-buster",
+  "src/prizeRules.mjs?v=20260614-cache-buster",
+  "src/redeemableDraws.mjs?v=20260614-cache-buster",
+  "src/recommendationTheory.mjs?v=20260614-cache-buster",
+  "src/sampleDraws.mjs?v=20260614-cache-buster",
+  "src/simulationTracker.mjs?v=20260614-cache-buster",
+  "src/ssqHistory.mjs?v=20260614-cache-buster",
+  "src/ticketCheck.mjs?v=20260614-cache-buster",
+  "src/strategyArena.mjs?v=20260614-cache-buster",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {
@@ -69,13 +69,16 @@ async function cacheFirst(request) {
 
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
+  // data 请求带时间戳 query，缓存时统一用去掉 query 的路径作为键，避免缓存膨胀
+  const cacheKey = new URL(request.url);
+  cacheKey.search = "";
 
   try {
     const response = await fetch(request);
-    cache.put(request, response.clone());
+    cache.put(cacheKey.toString(), response.clone());
     return response;
   } catch (error) {
-    const cached = await cache.match(request);
+    const cached = await cache.match(cacheKey.toString());
     if (cached) return cached;
     throw error;
   }
