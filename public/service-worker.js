@@ -1,28 +1,28 @@
-const CACHE_NAME = "lottery-h5-v28";
+const CACHE_NAME = "lottery-h5-v29";
 const SCOPE_URL = new URL("./", self.location.href);
 const DATA_PATHNAME = new URL("data/", SCOPE_URL).pathname;
 const APP_SHELL = [
   "./",
-  "styles.css?v=20260614-cache-buster",
-  "app.js?v=20260614-cache-buster",
+  "styles.css?v=20260614-arena-date",
+  "app.js?v=20260614-arena-date",
   "manifest.webmanifest",
   "icon.svg",
   "zanshang.png",
   "zhifubaozanshang.png",
-  "src/compliance.mjs?v=20260614-cache-buster",
-  "src/drawAnalysis.mjs?v=20260614-cache-buster",
-  "src/dltHistory.mjs?v=20260614-cache-buster",
-  "src/entitlements.mjs?v=20260614-cache-buster",
-  "src/lotteryCatalog.mjs?v=20260614-cache-buster",
-  "src/numberGenerator.mjs?v=20260614-cache-buster",
-  "src/prizeRules.mjs?v=20260614-cache-buster",
-  "src/redeemableDraws.mjs?v=20260614-cache-buster",
-  "src/recommendationTheory.mjs?v=20260614-cache-buster",
-  "src/sampleDraws.mjs?v=20260614-cache-buster",
-  "src/simulationTracker.mjs?v=20260614-cache-buster",
-  "src/ssqHistory.mjs?v=20260614-cache-buster",
-  "src/ticketCheck.mjs?v=20260614-cache-buster",
-  "src/strategyArena.mjs?v=20260614-cache-buster",
+  "src/compliance.mjs?v=20260614-arena-date",
+  "src/drawAnalysis.mjs?v=20260614-arena-date",
+  "src/dltHistory.mjs?v=20260614-arena-date",
+  "src/entitlements.mjs?v=20260614-arena-date",
+  "src/lotteryCatalog.mjs?v=20260614-arena-date",
+  "src/numberGenerator.mjs?v=20260614-arena-date",
+  "src/prizeRules.mjs?v=20260614-arena-date",
+  "src/redeemableDraws.mjs?v=20260614-arena-date",
+  "src/recommendationTheory.mjs?v=20260614-arena-date",
+  "src/sampleDraws.mjs?v=20260614-arena-date",
+  "src/simulationTracker.mjs?v=20260614-arena-date",
+  "src/ssqHistory.mjs?v=20260614-arena-date",
+  "src/ticketCheck.mjs?v=20260614-arena-date",
+  "src/strategyArena.mjs?v=20260614-arena-date",
 ].map((path) => new URL(path, SCOPE_URL).toString());
 
 self.addEventListener("install", (event) => {

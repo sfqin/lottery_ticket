@@ -1,17 +1,17 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260614-cache-buster";
-import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260614-cache-buster";
-import { createEntitlementState } from "./src/entitlements.mjs?v=20260614-cache-buster";
-import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260614-cache-buster";
-import { generateTicket } from "./src/numberGenerator.mjs?v=20260614-cache-buster";
-import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260614-cache-buster";
-import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260614-cache-buster";
-import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260614-cache-buster";
-import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260614-cache-buster";
-import { parseDltCsv } from "./src/dltHistory.mjs?v=20260614-cache-buster";
-import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260614-cache-buster";
-import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260614-cache-buster";
-import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260614-cache-buster";
-import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260614-cache-buster";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260614-arena-date";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260614-arena-date";
+import { createEntitlementState } from "./src/entitlements.mjs?v=20260614-arena-date";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260614-arena-date";
+import { generateTicket } from "./src/numberGenerator.mjs?v=20260614-arena-date";
+import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260614-arena-date";
+import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260614-arena-date";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260614-arena-date";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260614-arena-date";
+import { parseDltCsv } from "./src/dltHistory.mjs?v=20260614-arena-date";
+import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260614-arena-date";
+import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260614-arena-date";
+import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260614-arena-date";
+import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260614-arena-date";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
@@ -393,17 +393,49 @@ function renderArena() {
   elements.arenaList.innerHTML = `${visible.map(renderArenaIssue).join("")}${moreButton}`;
 }
 
+// 双色球开奖：周二(2)/四(4)/日(0)；大乐透开奖：周一(1)/三(3)/六(6)
+const ARENA_DRAW_WEEKDAYS = {
+  ssq: [0, 2, 4],
+  dlt: [1, 3, 6],
+};
+
+// 根据该彩种最新一期开奖日期，推算下一个开奖日（返回 YYYY-MM-DD）
+function predictNextDrawDate(typeId) {
+  const weekdays = ARENA_DRAW_WEEKDAYS[typeId];
+  if (!weekdays) return "";
+
+  const latestDraw = getLatestDraw(state.draws, typeId);
+  if (!latestDraw || !latestDraw.date) return "";
+
+  const base = new Date(`${latestDraw.date}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return "";
+
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const candidate = new Date(base);
+    candidate.setDate(base.getDate() + offset);
+    if (weekdays.includes(candidate.getDay())) {
+      const y = candidate.getFullYear();
+      const m = String(candidate.getMonth() + 1).padStart(2, "0");
+      const d = String(candidate.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return "";
+}
+
 function renderArenaIssue(issueSummary) {
   const type = getLotteryType(issueSummary.typeId);
   const statusText = issueSummary.evaluated ? "已开奖复盘" : "待开奖";
 
   // 待开奖 → 直接平铺；已归档 → 期号折叠
   if (!issueSummary.evaluated) {
+    const drawDate = predictNextDrawDate(issueSummary.typeId);
+    const statusLabel = drawDate ? `${drawDate} 开奖` : statusText;
     return `
       <article class="arena-issue arena-issue--pending">
         <header class="arena-issue__head">
           <strong>${escapeHtml(type.shortName)} ${escapeHtml(issueSummary.issue)} 期</strong>
-          <span class="arena-issue__status">${escapeHtml(statusText)}</span>
+          <span class="arena-issue__status">${escapeHtml(statusLabel)}</span>
         </header>
         <div class="arena-strategies">
           ${issueSummary.strategies.map((strategy) => renderArenaStrategyDetail(issueSummary.typeId, issueSummary.issue, strategy, false)).join("")}
