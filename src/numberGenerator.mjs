@@ -8,6 +8,7 @@ const DEFAULT_POSITIVE_MESSAGES = [
   "保持清醒，也保留一点期待。",
   "愿今天的选择轻松、克制，也有一点明亮。",
 ];
+const TREND_WINDOW_SIZE = 100;
 
 export function generateTicket({
   typeId,
@@ -19,11 +20,13 @@ export function generateTicket({
   const theoryResult = strategy === "theory" ? generateTheoryTicket({ typeId, draws, rng }) : null;
   const ticket = theoryResult
     ? theoryResult.ticket
-    : strategy === "data"
-      ? generateDataReferenceTicket(type, draws, rng)
-      : strategy === "random"
-        ? generateRandomTicket(type, rng)
-        : generateBalancedTicket(type, rng);
+    : strategy === "trend"
+      ? generateTrendReferenceTicket(type, draws, rng)
+      : strategy === "data"
+        ? generateDataReferenceTicket(type, draws, rng)
+        : strategy === "random"
+          ? generateRandomTicket(type, rng)
+          : generateBalancedTicket(type, rng);
 
   const validation = validateTicket(typeId, ticket);
   if (!validation.valid) {
@@ -91,6 +94,29 @@ function generateDataReferenceTicket(type, draws, rng) {
   return ticket;
 }
 
+function generateTrendReferenceTicket(type, draws, rng) {
+  const sortedDraws = sortDraws(draws);
+  if (!sortedDraws.length) {
+    return generateBalancedTicket(type, rng);
+  }
+
+  const recentDraws = sortedDraws.slice(-TREND_WINDOW_SIZE);
+  const stats = buildTrendStats(type, sortedDraws, recentDraws);
+  let bestTicket = generateBalancedTicket(type, rng);
+  let bestScore = scoreTrendTicket(bestTicket, type, stats);
+
+  for (let attempt = 0; attempt < 140; attempt += 1) {
+    const candidate = generateRandomTicket(type, rng);
+    const score = scoreTrendTicket(candidate, type, stats);
+    if (score > bestScore) {
+      bestTicket = candidate;
+      bestScore = score;
+    }
+  }
+
+  return bestTicket;
+}
+
 function drawUnique(min, max, count, rng) {
   const values = [];
   const seen = new Set();
@@ -134,6 +160,68 @@ function weightedUniqueDraw(frequency, count, rng) {
   return selected.sort((a, b) => a - b);
 }
 
+function buildTrendStats(type, allDraws, recentDraws) {
+  const stats = {};
+
+  for (const [groupName, rule] of Object.entries(type.groups)) {
+    stats[groupName] = {
+      allFrequency: countGroupFrequency(rule, allDraws, groupName),
+      recentFrequency: countGroupFrequency(rule, recentDraws, groupName),
+      omission: countGroupOmission(rule, recentDraws, groupName),
+    };
+  }
+
+  return stats;
+}
+
+function countGroupFrequency(rule, draws, groupName) {
+  const frequency = new Map();
+  for (let number = rule.min; number <= rule.max; number += 1) {
+    frequency.set(number, 0);
+  }
+
+  for (const draw of draws) {
+    for (const number of draw[groupName] ?? []) {
+      frequency.set(number, (frequency.get(number) ?? 0) + 1);
+    }
+  }
+
+  return frequency;
+}
+
+function countGroupOmission(rule, draws, groupName) {
+  const lastSeen = new Map();
+  for (let number = rule.min; number <= rule.max; number += 1) {
+    lastSeen.set(number, -1);
+  }
+
+  draws.forEach((draw, index) => {
+    for (const number of draw[groupName] ?? []) {
+      lastSeen.set(number, index);
+    }
+  });
+
+  return new Map(
+    [...lastSeen.entries()].map(([number, index]) => [
+      number,
+      index === -1 ? draws.length : draws.length - 1 - index,
+    ]),
+  );
+}
+
+function scoreTrendTicket(ticket, type, stats) {
+  return Object.entries(type.groups).reduce((total, [groupName, rule]) => {
+    const groupStats = stats[groupName];
+    const numberScore = ticket[groupName].reduce((sum, number) => {
+      const allFrequency = groupStats.allFrequency.get(number) ?? 0;
+      const recentFrequency = groupStats.recentFrequency.get(number) ?? 0;
+      const omission = groupStats.omission.get(number) ?? 0;
+      return sum + allFrequency * 0.35 + recentFrequency * 1.2 + Math.min(omission, 20) * 0.18;
+    }, 0);
+    return total + numberScore + scoreGroup(ticket[groupName], rule) * 3;
+  }, 0);
+}
+
 function scoreGroup(numbers, rule) {
   const oddCount = numbers.filter((number) => number % 2 === 1).length;
   const parityBalance = rule.count - Math.abs(oddCount - (rule.count - oddCount));
@@ -161,15 +249,21 @@ export function explainTicket(typeId, ticket, strategy, theory = null) {
   const summary =
     strategy === "theory"
       ? "分层理论模型：按官方奖级结构、历史数据与低权重随机扰动生成娱乐参考组合。"
-      : strategy === "data"
-      ? "历史数据参考生成：参考公开开奖分布，但历史数据不影响未来开奖结果。"
-      : strategy === "random"
-        ? "随机生成：按彩种规则生成合法号码。"
-        : "均衡生成：在合法随机基础上筛选结构较均衡的组合。";
+      : strategy === "trend"
+        ? "趋势参考：综合全部历史数据与最近 100 期走势生成娱乐参考组合。"
+        : strategy === "data"
+          ? "历史数据参考生成：参考公开开奖分布，但历史数据不影响未来开奖结果。"
+          : strategy === "random"
+            ? "随机生成：按彩种规则生成合法号码。"
+            : "均衡生成：在合法随机基础上筛选结构较均衡的组合。";
 
   if (theory) {
     items.push(theory.summary);
     items.push(theory.methodNotes[0]);
+  }
+
+  if (strategy === "trend") {
+    items.push("趋势参考综合最近 100 期的冷热、遗漏、奇偶、区间分布与全部历史频率。");
   }
 
   items.push("历史数据仅用于娱乐分析，不构成中奖预测。");
@@ -194,6 +288,14 @@ function regionOf(number, rule) {
   if (number <= lowEdge) return "low";
   if (number <= midEdge) return "mid";
   return "high";
+}
+
+function sortDraws(draws) {
+  return [...draws].sort((a, b) => drawSortKey(a).localeCompare(drawSortKey(b)));
+}
+
+function drawSortKey(draw) {
+  return `${draw.date ?? ""}-${draw.issue ?? ""}`;
 }
 
 function pickMessage(rng) {
