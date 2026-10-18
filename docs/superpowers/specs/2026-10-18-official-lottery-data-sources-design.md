@@ -4,16 +4,20 @@
 
 现有自动更新任务从 `data.17500.cn` 下载双色球和大乐透完整历史文本。该域名从 2026-09-29 起持续返回 HTTP 429，导致数据更新任务连续失败，Pages 部署也因上游任务失败而跳过。当前数据停留在双色球 `2026112`（2026-09-27）和大乐透 `26111`（2026-09-28）。
 
-本次迁移彻底移除运行时对 17500 的依赖，改用彩票发行机构公开的官方接口：
+本次迁移彻底移除运行时对 17500 的依赖。最初接入彩票发行机构公开接口：
 
 - 双色球：中国福彩网 `www.cwl.gov.cn`
 - 大乐透：中国体彩网 `webapi.sporttery.cn`
+
+远程验收时确认 GitHub 托管 Runner 位于 Azure `eastus`，中国福彩网的 JSON、静态开奖页和公告页均返回 HTTP 403，中国体彩网接口返回 HTTP 567。浏览器 User-Agent 和正确 Referer 均不能解除限制，因此根因是境外云 Runner 到境内官网的网络/WAF策略，而不是解析器或请求头。
+
+最终运行时数据源改为新浪彩票公开开奖 API。新浪是中国福彩、体彩公布的开奖信息发布渠道，并提供内容相同的 `alpha.lottery.sina.com.cn` 与 `mix.lottery.sina.com.cn` 两个网关；远程 Runner 已实测两网关、两种彩票均返回 HTTP 200。两个域名作为同一发布方的容灾入口，不引入 17500 或其他彩票数据商。
 
 历史 CSV 中已有记录保留原 `source=17500`，该字段只表示记录的历史来源，不代表程序仍会访问该域名。
 
 ## 目标
 
-1. 自动更新仅访问福彩和体彩官方接口。
+1. 自动更新仅访问新浪彩票的两个同源公开网关。
 2. 一次性补齐双色球 `2026113` 至 `2026118` 共 6 期，以及大乐透 `26112` 至 `26118` 共 7 期。
 3. 保留现有完整历史，不因官方接口的历史覆盖范围不同而删除早期记录。
 4. 在网络异常、响应格式变化、数据冲突或数据不完整时不覆盖已有 CSV。
@@ -21,32 +25,17 @@
 
 ## 数据源与字段映射
 
-### 双色球
+双色球使用 `lottoType=101`，大乐透使用 `lottoType=201`。列表接口 `cat1=gameOpenList` 用于分页寻找与本地历史的交集；仅对本地缺失期次调用详情接口 `cat1=gameOpenInfo` 补齐金额和奖级字段。每条记录映射：
 
-使用中国福彩网往期开奖 JSON 接口。每条记录映射：
-
-- `code` -> `issue`
-- `date` 去除星期后缀 -> `date`
-- `red` -> 6 个红球
-- `blue` -> 1 个蓝球
-- `sales` -> `sales`
-- `prizegrades[type=1].typenum` -> `firstPrizeCount`
-- `prizegrades[type=2].typenum` -> `secondPrizeCount`
-- 固定写入 `source=cwl`
-
-### 大乐透
-
-使用中国体彩网历史开奖 JSON 接口，`gameNo=85`。每条记录映射：
-
-- `lotteryDrawNum` -> `issue`
-- `lotteryDrawTime` -> `date`
-- `lotteryDrawResult` 前 5 个号码 -> `front`
-- `lotteryDrawResult` 后 2 个号码 -> `back`
-- `totalSaleAmount` -> `sales`
-- `poolBalanceAfterdraw` -> `pool`
-- `prizeLevelList[group=101].stakeCount` -> `firstPrizeCount`
-- `prizeLevelList[group=301].stakeCount` -> `secondPrizeCount`
-- 固定写入 `source=sporttery`
+- `issueNo` -> `issue`
+- `openTime` 的日期部分 -> `date`
+- `redResults` -> 双色球红球或大乐透前区
+- `blueResults` -> 双色球蓝球或大乐透后区
+- `saleMoney` -> `sales`
+- `poolMoney` -> 大乐透 `pool`
+- `prizeList[prizeDesc=一等奖].prizeCount` -> `firstPrizeCount`
+- `prizeList[prizeDesc=二等奖].prizeCount` -> `secondPrizeCount`
+- 新增记录固定写入 `source=sina`
 
 金额字段去除逗号后转为数值，并保留官方接口提供的小数精度。接口缺少可选金额或奖级字段时写入 `null`，号码、期号和日期缺失则视为无效响应。
 
@@ -55,32 +44,33 @@
 两个导入脚本分别执行以下流程：
 
 1. 读取并解析已有 CSV。
-2. 从官方接口第一页开始按新到旧抓取。
+2. 从开奖列表接口第一页开始按新到旧抓取。
 3. 持续翻页，直到响应中出现本地已有期号；若第一页已经相交，只请求一页。
-4. 解析所有已请求页面并按期号去重。
+4. 解析所有已请求页面，并为本地缺失期次抓取详情。
 5. 对与本地重叠的期次比较日期和开奖号码；存在冲突时失败，不写文件。
-6. 将官方接口中缺失的新期次与本地历史合并。
+6. 将发布接口中缺失的新期次与本地历史合并。
 7. 对合并后的完整数据运行现有合法性、期号唯一性校验。
 8. 仅在所有步骤成功后一次性覆盖对应 CSV。
 
-如果到达官方接口最后一页仍未找到与本地历史的交集，任务失败，避免因错误接口、错误彩种或截断响应生成不可信文件。
+如果到达发布接口最后一页仍未找到与本地历史的交集，任务失败，避免因错误接口、错误彩种或截断响应生成不可信文件。
 
 ## 网络和错误处理
 
 - 使用 Node.js 内置 `fetch` 请求 JSON，不再通过 `curl` 调用外部进程。
-- 请求携带明确的 `User-Agent`、`Accept` 和对应官网 `Referer`。
+- 请求携带明确的 `User-Agent`、`Accept` 和新浪彩票 `Referer`。
 - 每个请求设置超时。
 - 对超时、HTTP 429 和 HTTP 5xx 做有限次数的指数退避重试。
+- `alpha` 网关不可用时自动切换到同源 `mix` 网关。
 - 对其他 HTTP 错误、非 JSON 响应、接口业务错误和字段结构变化立即失败。
-- 不引入非官方备用源；失败时保留上一次已验证的数据，等待下一轮调度。
+- 两个同源网关均失败时保留上一次已验证的数据，等待下一轮调度。
 
 ## 代码边界
 
-- `src/ssqHistory.mjs`：增加中国福彩网响应解析和记录一致性逻辑。
-- `src/dltHistory.mjs`：增加中国体彩网响应解析和记录一致性逻辑。
-- `scripts/import-ssq-history.mjs`：改为官方 API 分页抓取、合并和原子写入。
-- `scripts/import-dlt-history.mjs`：改为官方 API 分页抓取、合并和原子写入。
-- 测试文件：覆盖官方响应解析、数值格式、缺失字段、重叠一致、冲突拒绝和增量合并。
+- `src/ssqHistory.mjs`：增加新浪双色球列表/详情响应解析和记录一致性逻辑。
+- `src/dltHistory.mjs`：增加新浪大乐透列表/详情响应解析和记录一致性逻辑。
+- `scripts/import-ssq-history.mjs`：按新浪 API 分页抓取、详情补全、合并和原子写入。
+- `scripts/import-dlt-history.mjs`：按新浪 API 分页抓取、详情补全、合并和原子写入。
+- 测试文件：覆盖新浪响应解析、同源网关切换、数值格式、缺失字段、重叠一致、冲突拒绝和增量合并。
 - 工作流继续调用现有 `npm run import:ssq` 与 `npm run import:dlt`，无需更改触发时间。
 
 旧的 17500 解析函数可以删除；CSV 中的历史 `source` 字段不改写。
@@ -96,5 +86,5 @@
 3. 双色球最新一期为 `2026118`，新增 6 期。
 4. 大乐透最新一期为 `26118`，新增 7 期。
 5. 两份 CSV 均通过完整数据校验，无重复期号。
-6. 仓库中不再存在对 `data.17500.cn` 的运行时引用。
+6. 仓库中不再存在对 `data.17500.cn`、中国福彩网或中国体彩网的运行时请求。
 7. 推送后远程 `Update lottery data` 成功，随后 `Deploy GitHub Pages` 成功。

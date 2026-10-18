@@ -1,5 +1,7 @@
 # Official Lottery Data Sources Implementation Plan
 
+> 远程验收修订（2026-10-18）：GitHub 托管 Runner 实测无法稳定访问中国福彩网和中国体彩网，最终运行时改用两种彩票均认可的新浪开奖发布渠道，并在 `alpha` / `mix` 两个同源网关间容灾。下文保留初始实施步骤，最终实现与验收以设计文档中的修订说明和当前代码为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace all live 17500 requests with official China Welfare Lottery and China Sports Lottery APIs, safely merge missing draws into the existing history, backfill 13 missing issues, and restore the scheduled GitHub Pages update chain.

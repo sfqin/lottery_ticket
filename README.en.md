@@ -82,7 +82,7 @@ npm run import:dlt
 npm run generate:arena
 ```
 
-Draw data comes from the lottery operators' public endpoints: Double Color Ball from China Welfare Lottery and Super Lotto from China Sports Lottery. Importers merge newly published issues into the stored history; network, response-shape, or overlapping-draw validation failures leave the last verified data files unchanged.
+Draw data comes from Sina Lottery's public draw API, an announced publication channel for China's welfare and sports lotteries. Importers automatically fail over between Sina's `alpha` and `mix` gateways and merge newly published issues into the stored history. Network, response-shape, or overlapping-draw validation failures leave the last verified data files unchanged. Historical `source=17500` CSV values are provenance only; runtime code no longer contacts that domain.
 
 GitHub Actions also updates the data automatically:
 

@@ -17,46 +17,22 @@ export const SSQ_CSV_HEADER = [
   "source",
 ];
 
-export function parseCwlSsqResponse(payload) {
-  if (payload?.state !== 0) {
-    throw new Error(`Welfare Lottery API failed: ${payload?.message ?? "unknown error"}`);
+export function parseSinaSsqListResponse(payload) {
+  const result = parseSinaResult(payload);
+  const totalPages = Number(result.pagination?.totalPage);
+  if (!Array.isArray(result.data) || !Number.isInteger(totalPages)) {
+    throw new Error("Sina Lottery API returned an invalid history page");
   }
-  if (!Array.isArray(payload.result) || !Number.isInteger(Number(payload.pageNum))) {
-    throw new Error("Welfare Lottery API returned an invalid history page");
+
+  return { totalPages, draws: result.data.map(parseSinaSsqDraw) };
+}
+
+export function parseSinaSsqDetailResponse(payload) {
+  const result = parseSinaResult(payload);
+  if (!result.data || Array.isArray(result.data)) {
+    throw new Error("Sina Lottery API returned invalid SSQ detail");
   }
-
-  return {
-    totalPages: Number(payload.pageNum),
-    draws: payload.result.map((row) => {
-      const date = String(row.date ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-      if (!date) {
-        throw new Error(`Invalid SSQ date for issue ${row.code ?? "unknown"}`);
-      }
-
-      const red = String(row.red ?? "").split(",").map(Number);
-      const blue = String(row.blue ?? "").split(",").map(Number);
-      if (
-        red.length !== 6 ||
-        blue.length !== 1 ||
-        [...red, ...blue].some((number) => !Number.isInteger(number))
-      ) {
-        throw new Error(`Invalid SSQ result for issue ${row.code ?? "unknown"}`);
-      }
-
-      const prize = (type) => row.prizegrades?.find((item) => Number(item.type) === type);
-      return {
-        type: "ssq",
-        issue: String(row.code ?? ""),
-        date,
-        red,
-        blue,
-        sales: parseNullableNumber(row.sales),
-        firstPrizeCount: parseNullableNumber(prize(1)?.typenum),
-        secondPrizeCount: parseNullableNumber(prize(2)?.typenum),
-        source: "cwl",
-      };
-    }),
-  };
+  return parseSinaSsqDraw(result.data);
 }
 
 export function ssqDrawSignature(draw) {
@@ -155,4 +131,44 @@ export function validateSsqDraws(draws) {
 function parseNullableNumber(value) {
   const normalized = String(value ?? "").replaceAll(",", "").trim();
   return normalized ? Number(normalized) : null;
+}
+
+function parseSinaResult(payload) {
+  const status = payload?.result?.status;
+  if (status?.code !== 0) {
+    throw new Error(`Sina Lottery API failed: ${status?.msg ?? "unknown error"}`);
+  }
+  return payload.result;
+}
+
+function parseSinaSsqDraw(row) {
+  const issue = String(row.issueNo ?? "");
+  const date = String(row.openTime ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) {
+    throw new Error(`Invalid SSQ date for issue ${issue || "unknown"}`);
+  }
+
+  const red = Array.isArray(row.redResults) ? row.redResults.map(Number) : [];
+  const blue = Array.isArray(row.blueResults) ? row.blueResults.map(Number) : [];
+  if (
+    red.length !== 6 ||
+    blue.length !== 1 ||
+    [...red, ...blue].some((number) => !Number.isInteger(number))
+  ) {
+    throw new Error(`Invalid SSQ result for issue ${issue || "unknown"}`);
+  }
+
+  const prize = (description) =>
+    row.prizeList?.find((item) => String(item.prizeDesc) === description);
+  return {
+    type: "ssq",
+    issue,
+    date,
+    red,
+    blue,
+    sales: parseNullableNumber(row.saleMoney),
+    firstPrizeCount: parseNullableNumber(prize("一等奖")?.prizeCount),
+    secondPrizeCount: parseNullableNumber(prize("二等奖")?.prizeCount),
+    source: "sina",
+  };
 }

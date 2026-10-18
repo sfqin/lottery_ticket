@@ -18,38 +18,22 @@ export const DLT_CSV_HEADER = [
   "source",
 ];
 
-export function parseSportteryDltResponse(payload) {
-  if (payload?.success !== true) {
-    throw new Error(`Sports Lottery API failed: ${payload?.errorMessage ?? "unknown error"}`);
-  }
-  if (!Array.isArray(payload.value?.list) || !Number.isInteger(Number(payload.value.pages))) {
-    throw new Error("Sports Lottery API returned an invalid history page");
+export function parseSinaDltListResponse(payload) {
+  const result = parseSinaResult(payload);
+  const totalPages = Number(result.pagination?.totalPage);
+  if (!Array.isArray(result.data) || !Number.isInteger(totalPages)) {
+    throw new Error("Sina Lottery API returned an invalid history page");
   }
 
-  return {
-    totalPages: Number(payload.value.pages),
-    draws: payload.value.list.map((row) => {
-      const numbers = String(row.lotteryDrawResult ?? "").trim().split(/\s+/).map(Number);
-      if (numbers.length !== 7 || numbers.some((number) => !Number.isInteger(number))) {
-        throw new Error(`Invalid DLT result for issue ${row.lotteryDrawNum ?? "unknown"}`);
-      }
+  return { totalPages, draws: result.data.map(parseSinaDltDraw) };
+}
 
-      const prize = (group) =>
-        row.prizeLevelList?.find((item) => String(item.group) === group);
-      return {
-        type: "dlt",
-        issue: String(row.lotteryDrawNum ?? ""),
-        date: String(row.lotteryDrawTime ?? ""),
-        front: numbers.slice(0, 5),
-        back: numbers.slice(5),
-        sales: parseNullableNumber(row.totalSaleAmount),
-        pool: parseNullableNumber(row.poolBalanceAfterdraw),
-        firstPrizeCount: parseNullableNumber(prize("101")?.stakeCount),
-        secondPrizeCount: parseNullableNumber(prize("301")?.stakeCount),
-        source: "sporttery",
-      };
-    }),
-  };
+export function parseSinaDltDetailResponse(payload) {
+  const result = parseSinaResult(payload);
+  if (!result.data || Array.isArray(result.data)) {
+    throw new Error("Sina Lottery API returned invalid DLT detail");
+  }
+  return parseSinaDltDraw(result.data);
 }
 
 export function dltDrawSignature(draw) {
@@ -151,4 +135,45 @@ export function validateDltDraws(draws) {
 function parseNullableNumber(value) {
   const normalized = String(value ?? "").replaceAll(",", "").trim();
   return normalized === "-" || normalized === "" ? null : Number(normalized);
+}
+
+function parseSinaResult(payload) {
+  const status = payload?.result?.status;
+  if (status?.code !== 0) {
+    throw new Error(`Sina Lottery API failed: ${status?.msg ?? "unknown error"}`);
+  }
+  return payload.result;
+}
+
+function parseSinaDltDraw(row) {
+  const issue = String(row.issueNo ?? "");
+  const date = String(row.openTime ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) {
+    throw new Error(`Invalid DLT date for issue ${issue || "unknown"}`);
+  }
+
+  const front = Array.isArray(row.redResults) ? row.redResults.map(Number) : [];
+  const back = Array.isArray(row.blueResults) ? row.blueResults.map(Number) : [];
+  if (
+    front.length !== 5 ||
+    back.length !== 2 ||
+    [...front, ...back].some((number) => !Number.isInteger(number))
+  ) {
+    throw new Error(`Invalid DLT result for issue ${issue || "unknown"}`);
+  }
+
+  const prize = (description) =>
+    row.prizeList?.find((item) => String(item.prizeDesc) === description);
+  return {
+    type: "dlt",
+    issue,
+    date,
+    front,
+    back,
+    sales: parseNullableNumber(row.saleMoney),
+    pool: parseNullableNumber(row.poolMoney),
+    firstPrizeCount: parseNullableNumber(prize("一等奖")?.prizeCount),
+    secondPrizeCount: parseNullableNumber(prize("二等奖")?.prizeCount),
+    source: "sina",
+  };
 }

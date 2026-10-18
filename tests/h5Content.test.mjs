@@ -223,9 +223,10 @@ describe("H5 content", () => {
     assert.match(workflow, /cron:/);
     assert.match(workflow, /npm run import:ssq/);
     assert.match(workflow, /npm run import:dlt/);
-    assert.match(ssqImporter, /www\.cwl\.gov\.cn/);
-    assert.match(dltImporter, /webapi\.sporttery\.cn/);
-    assert.match(ssqImporter, /"User-Agent": "Mozilla\/5\.0/);
+    assert.match(ssqImporter, /alpha\.lottery\.sina\.com\.cn/);
+    assert.match(ssqImporter, /mix\.lottery\.sina\.com\.cn/);
+    assert.match(dltImporter, /alpha\.lottery\.sina\.com\.cn/);
+    assert.match(dltImporter, /mix\.lottery\.sina\.com\.cn/);
     assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /17500/);
     assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /execFileSync|curl/);
   });

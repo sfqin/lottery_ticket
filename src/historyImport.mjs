@@ -44,6 +44,20 @@ export async function fetchJsonWithRetry(
   throw new Error(`Unable to fetch ${url}`);
 }
 
+export async function fetchJsonFromMirrors(urls, options = {}) {
+  const failures = [];
+
+  for (const url of urls) {
+    try {
+      return await fetchJsonWithRetry(url, options);
+    } catch (error) {
+      failures.push(`${url}: ${error.message}`);
+    }
+  }
+
+  throw new Error(`All lottery API mirrors failed:\n${failures.join("\n")}`);
+}
+
 export async function collectIncrementalDraws({ existingIssues, fetchPage }) {
   const collected = [];
 

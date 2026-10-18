@@ -2,47 +2,74 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  parseCwlSsqResponse,
+  parseSinaSsqDetailResponse,
+  parseSinaSsqListResponse,
   parseSsqCsv,
   serializeSsqCsv,
   validateSsqDraws,
 } from "../src/ssqHistory.mjs";
 
-const officialResponse = {
-  state: 0,
-  pageNum: 70,
-  result: [
-    {
-      code: "2026118",
-      date: "2026-10-15(四)",
-      red: "05,21,22,23,28,31",
-      blue: "14",
-      sales: "340890776",
-      prizegrades: [
-        { type: 1, typenum: "5" },
-        { type: 2, typenum: "80" },
+const sinaListResponse = {
+  result: {
+    status: { code: 0, msg: "success" },
+    pagination: { totalPage: 118 },
+    data: [
+      {
+        issueNo: "2026118",
+        openTime: "2026-10-15 21:15:00",
+        redResults: ["05", "21", "22", "23", "28", "31"],
+        blueResults: ["14"],
+        status: "1",
+      },
+      {
+        issueNo: "2026117",
+        openTime: "2026-10-13 21:15:00",
+        redResults: ["04", "11", "14", "22", "26", "27"],
+        blueResults: ["04"],
+        status: "1",
+      },
+    ],
+  },
+};
+
+const sinaDetailResponse = {
+  result: {
+    status: { code: 0, msg: "success" },
+    data: {
+      issueNo: "2026118",
+      openTime: "2026-10-15 21:15:00",
+      redResults: ["05", "21", "22", "23", "28", "31"],
+      blueResults: ["14"],
+      saleMoney: "340890776",
+      prizeList: [
+        { prizeDesc: "一等奖", prizeCount: "5" },
+        { prizeDesc: "二等奖", prizeCount: "80" },
       ],
+      status: "1",
     },
-    {
-      code: "2026117",
-      date: "2026-10-13(二)",
-      red: "03,08,12,17,19,30",
-      blue: "06",
-      sales: "320000000",
-      prizegrades: [
-        { type: 1, typenum: "4" },
-        { type: 2, typenum: "90" },
-      ],
-    },
-  ],
+  },
 };
 
 describe("ssq history import", () => {
-  it("parses official China Welfare Lottery history responses", () => {
-    const parsed = parseCwlSsqResponse(officialResponse);
+  it("parses Sina lottery history list responses", () => {
+    const parsed = parseSinaSsqListResponse(sinaListResponse);
 
-    assert.equal(parsed.totalPages, 70);
+    assert.equal(parsed.totalPages, 118);
     assert.deepEqual(parsed.draws[0], {
+      type: "ssq",
+      issue: "2026118",
+      date: "2026-10-15",
+      red: [5, 21, 22, 23, 28, 31],
+      blue: [14],
+      sales: null,
+      firstPrizeCount: null,
+      secondPrizeCount: null,
+      source: "sina",
+    });
+  });
+
+  it("parses Sina lottery detail responses with prize fields", () => {
+    assert.deepEqual(parseSinaSsqDetailResponse(sinaDetailResponse), {
       type: "ssq",
       issue: "2026118",
       date: "2026-10-15",
@@ -51,32 +78,34 @@ describe("ssq history import", () => {
       sales: 340890776,
       firstPrizeCount: 5,
       secondPrizeCount: 80,
-      source: "cwl",
+      source: "sina",
     });
   });
 
-  it("rejects failed or malformed China Welfare Lottery responses", () => {
+  it("rejects failed or malformed Sina lottery responses", () => {
     assert.throws(
-      () => parseCwlSsqResponse({ state: 1, message: "查询失败" }),
+      () => parseSinaSsqListResponse({ result: { status: { code: 1, msg: "查询失败" } } }),
       /查询失败/,
     );
     assert.throws(
       () =>
-        parseCwlSsqResponse({
-          state: 0,
-          pageNum: 1,
-          result: [{ code: "2026118", date: "bad" }],
+        parseSinaSsqListResponse({
+          result: {
+            status: { code: 0, msg: "success" },
+            pagination: { totalPage: 1 },
+            data: [{ issueNo: "2026118", openTime: "bad" }],
+          },
         }),
       /invalid SSQ date/i,
     );
     assert.throws(
-      () => parseCwlSsqResponse({ state: 0, pageNum: 1 }),
+      () => parseSinaSsqListResponse({ result: { status: { code: 0 } } }),
       /invalid history page/i,
     );
   });
 
   it("serializes and parses CSV without losing draw fields", () => {
-    const draws = parseCwlSsqResponse(officialResponse).draws;
+    const draws = parseSinaSsqListResponse(sinaListResponse).draws;
     const csv = serializeSsqCsv(draws);
     const parsed = parseSsqCsv(csv);
 
@@ -85,7 +114,7 @@ describe("ssq history import", () => {
   });
 
   it("validates draw shape, issue uniqueness, and ticket legality", () => {
-    const draws = parseCwlSsqResponse(officialResponse).draws;
+    const draws = parseSinaSsqListResponse(sinaListResponse).draws;
     const report = validateSsqDraws(draws);
 
     assert.equal(report.valid, true);

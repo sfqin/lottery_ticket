@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import {
   collectIncrementalDraws,
+  fetchJsonFromMirrors,
   fetchJsonWithRetry,
   mergeDrawHistory,
   writeTextAtomically,
@@ -45,6 +46,26 @@ describe("official history HTTP client", () => {
     );
 
     assert.equal(calls, 1);
+  });
+
+  it("falls back to the second mirror when the first is unavailable", async () => {
+    const requested = [];
+
+    const result = await fetchJsonFromMirrors(
+      ["https://alpha.example.test", "https://mix.example.test"],
+      {
+        fetchImpl: async (url) => {
+          requested.push(String(url));
+          return String(url).includes("alpha")
+            ? new Response("blocked", { status: 403 })
+            : Response.json({ result: "ok" });
+        },
+        sleep: async () => {},
+      },
+    );
+
+    assert.deepEqual(requested, ["https://alpha.example.test", "https://mix.example.test"]);
+    assert.deepEqual(result, { result: "ok" });
   });
 });
 
