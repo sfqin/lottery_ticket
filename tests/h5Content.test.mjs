@@ -203,12 +203,14 @@ describe("H5 content", () => {
   });
 
   it("declares PWA install assets and scheduled data update workflow", async () => {
-    const [html, app, manifest, serviceWorker, workflow] = await Promise.all([
+    const [html, app, manifest, serviceWorker, workflow, ssqImporter, dltImporter] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
       readPublicFile("manifest.webmanifest"),
       readPublicFile("service-worker.js"),
       readRepoFile(".github/workflows/update-lottery-data.yml"),
+      readRepoFile("scripts/import-ssq-history.mjs"),
+      readRepoFile("scripts/import-dlt-history.mjs"),
     ]);
 
     const parsedManifest = JSON.parse(manifest);
@@ -221,5 +223,9 @@ describe("H5 content", () => {
     assert.match(workflow, /cron:/);
     assert.match(workflow, /npm run import:ssq/);
     assert.match(workflow, /npm run import:dlt/);
+    assert.match(ssqImporter, /www\.cwl\.gov\.cn/);
+    assert.match(dltImporter, /webapi\.sporttery\.cn/);
+    assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /17500/);
+    assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /execFileSync|curl/);
   });
 });
