@@ -1,34 +1,56 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import {
-  parseDlt17500Text,
+  dltDrawSignature,
+  parseDltCsv,
+  parseSportteryDltResponse,
   serializeDltCsv,
   validateDltDraws,
 } from "../src/dltHistory.mjs";
+import {
+  collectIncrementalDraws,
+  fetchJsonWithRetry,
+  mergeDrawHistory,
+  writeTextAtomically,
+} from "../src/historyImport.mjs";
 
-const TEXT_URL = "https://data.17500.cn/dlt_asc.txt";
-const outputPath = new URL("../data/dlt-history.csv", import.meta.url);
+const API_URL = "https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry";
+const headers = {
+  Accept: "application/json",
+  Referer: "https://www.sporttery.cn/kj/kjlb.html?dlt",
+  "User-Agent": "lottery-ticket-history-updater/1.0",
+};
 
-const draws = parseDlt17500Text(fetchText(TEXT_URL));
-const uniqueDraws = [...new Map(draws.map((draw) => [draw.issue, draw])).values()];
-const validation = validateDltDraws(uniqueDraws);
+const outputPath = fileURLToPath(new URL("../data/dlt-history.csv", import.meta.url));
+const existing = parseDltCsv(readFileSync(outputPath, "utf8"));
+const existingIssues = new Set(existing.map((draw) => draw.issue));
+const incoming = await collectIncrementalDraws({
+  existingIssues,
+  fetchPage: async (pageNo) => {
+    const url = new URL(API_URL);
+    for (const [name, value] of Object.entries({
+      gameNo: "85",
+      provinceId: "0",
+      pageSize: "30",
+      isVerify: "1",
+      pageNo: String(pageNo),
+    })) {
+      url.searchParams.set(name, value);
+    }
+    return parseSportteryDltResponse(await fetchJsonWithRetry(url, { headers }));
+  },
+});
 
+const merged = mergeDrawHistory(existing, incoming, dltDrawSignature);
+const validation = validateDltDraws(merged);
 if (!validation.valid) {
   throw new Error(`DLT history validation failed:\n${validation.errors.join("\n")}`);
 }
 
-mkdirSync(dirname(outputPath.pathname), { recursive: true });
-writeFileSync(outputPath, serializeDltCsv(uniqueDraws), "utf8");
-
+writeTextAtomically(outputPath, serializeDltCsv(merged));
+const latest = merged.toSorted((a, b) => b.issue.localeCompare(a.issue))[0];
 console.log(
-  `Imported ${uniqueDraws.length} 大乐透 draws from 17500 into ${outputPath.pathname}`,
+  `Imported ${merged.length - existing.length} new 大乐透 draws; ` +
+    `${merged.length} total; latest ${latest.issue}`,
 );
-
-function fetchText(url) {
-  return execFileSync("curl", ["-fsSL", "--retry", "3", "--retry-delay", "1", url], {
-    encoding: "utf8",
-    maxBuffer: 20 * 1024 * 1024,
-  });
-}
