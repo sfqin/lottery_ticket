@@ -225,6 +225,7 @@ describe("H5 content", () => {
     assert.match(workflow, /npm run import:dlt/);
     assert.match(ssqImporter, /www\.cwl\.gov\.cn/);
     assert.match(dltImporter, /webapi\.sporttery\.cn/);
+    assert.match(ssqImporter, /"User-Agent": "Mozilla\/5\.0/);
     assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /17500/);
     assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /execFileSync|curl/);
   });
