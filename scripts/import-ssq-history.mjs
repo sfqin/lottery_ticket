@@ -19,7 +19,7 @@ const API_URL = "https://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDr
 const headers = {
   Accept: "application/json",
   Referer: "https://www.cwl.gov.cn/ssq/wqkj/",
-  "User-Agent": "lottery-ticket-history-updater/1.0",
+  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
 };
 
 const outputPath = fileURLToPath(new URL("../data/ssq-history.csv", import.meta.url));
