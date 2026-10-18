@@ -82,6 +82,8 @@ npm run import:dlt
 npm run generate:arena
 ```
 
+Draw data comes from the lottery operators' public endpoints: Double Color Ball from China Welfare Lottery and Super Lotto from China Sports Lottery. Importers merge newly published issues into the stored history; network, response-shape, or overlapping-draw validation failures leave the last verified data files unchanged.
+
 GitHub Actions also updates the data automatically:
 
 - Double Color Ball: after Tuesday, Thursday, and Sunday draw nights.
