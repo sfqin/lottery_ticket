@@ -18,30 +18,42 @@ export const DLT_CSV_HEADER = [
   "source",
 ];
 
-export function parseDlt17500Text(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/\s+/);
-      if (parts.length < 21) {
-        throw new Error(`Invalid 17500 DLT line: ${line}`);
+export function parseSportteryDltResponse(payload) {
+  if (payload?.success !== true) {
+    throw new Error(`Sports Lottery API failed: ${payload?.errorMessage ?? "unknown error"}`);
+  }
+  if (!Array.isArray(payload.value?.list) || !Number.isInteger(Number(payload.value.pages))) {
+    throw new Error("Sports Lottery API returned an invalid history page");
+  }
+
+  return {
+    totalPages: Number(payload.value.pages),
+    draws: payload.value.list.map((row) => {
+      const numbers = String(row.lotteryDrawResult ?? "").trim().split(/\s+/).map(Number);
+      if (numbers.length !== 7 || numbers.some((number) => !Number.isInteger(number))) {
+        throw new Error(`Invalid DLT result for issue ${row.lotteryDrawNum ?? "unknown"}`);
       }
 
+      const prize = (group) =>
+        row.prizeLevelList?.find((item) => String(item.group) === group);
       return {
         type: "dlt",
-        issue: parts[0],
-        date: parts[1],
-        front: parts.slice(2, 7).map(Number),
-        back: parts.slice(7, 9).map(Number),
-        sales: parseNullableNumber(parts[16]),
-        pool: parseNullableNumber(parts[17]),
-        firstPrizeCount: parseNullableNumber(parts[18]),
-        secondPrizeCount: parseNullableNumber(parts[20]),
-        source: "17500",
+        issue: String(row.lotteryDrawNum ?? ""),
+        date: String(row.lotteryDrawTime ?? ""),
+        front: numbers.slice(0, 5),
+        back: numbers.slice(5),
+        sales: parseNullableNumber(row.totalSaleAmount),
+        pool: parseNullableNumber(row.poolBalanceAfterdraw),
+        firstPrizeCount: parseNullableNumber(prize("101")?.stakeCount),
+        secondPrizeCount: parseNullableNumber(prize("301")?.stakeCount),
+        source: "sporttery",
       };
-    });
+    }),
+  };
+}
+
+export function dltDrawSignature(draw) {
+  return `${draw.date}|${draw.front.join(",")}|${draw.back.join(",")}`;
 }
 
 export function serializeDltCsv(draws) {
