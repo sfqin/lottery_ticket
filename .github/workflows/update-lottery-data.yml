@@ -3,11 +3,17 @@ name: Update lottery data
 on:
   workflow_dispatch:
   schedule:
-    # 双色球：周二/四/日 21:15 开奖，北京时间 21:45 抓取。
-    - cron: "45 13 * * 0,2,4"
-    # 超级大乐透：周一/三/六 21:25 开奖，北京时间 22:00 抓取。
-    - cron: "0 14 * * 1,3,6"
-    # 开奖日晚间补抓一次，覆盖数据源延迟发布的情况。
+    # 双色球：周二/四/日 21:15 开奖
+    # 第 1 抓：北京时间 21:25（开奖后 10 分钟，吃实时数据）
+    - cron: "25 13 * * 0,2,4"
+    # 第 2 抓兜底：北京时间 21:40（cron 漂移或数据源延迟时补一刀）
+    - cron: "40 13 * * 0,2,4"
+    # 超级大乐透：周一/三/六 21:20 开奖
+    # 第 1 抓：北京时间 21:35（开奖后 15 分钟）
+    - cron: "35 13 * * 1,3,6"
+    # 第 2 抓兜底：北京时间 21:50
+    - cron: "50 13 * * 1,3,6"
+    # 晚间终极兜底：北京时间 23:30，防止数据源整段延迟
     - cron: "30 15 * * 0,1,2,3,4,6"
 
 permissions:
@@ -18,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -25,14 +33,16 @@ jobs:
         run: |
           npm run import:ssq
           npm run import:dlt
+      - name: Generate strategy arena predictions
+        run: npm run generate:arena
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data/ssq-history.csv data/dlt-history.csv; then
+          if git diff --quiet -- data/ssq-history.csv data/dlt-history.csv data/ssq-arena.csv data/dlt-arena.csv; then
             echo "No lottery data changes."
           else
-            git add data/ssq-history.csv data/dlt-history.csv
-            git commit -m "Update lottery history data"
-            git push
+            git add data/ssq-history.csv data/dlt-history.csv data/ssq-arena.csv data/dlt-arena.csv
+            git commit -m "Update lottery history data and strategy arena"
+            git push origin HEAD:main
           fi

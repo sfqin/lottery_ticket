@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20260609-mobile-polish" />
+    <link rel="stylesheet" href="styles.css?v=20260614-arena-date" />
   </head>
   <body>
     <main class="shell">
@@ -71,6 +71,7 @@
           <label class="field">
             <span>生成模式</span>
             <select id="strategy-select">
+              <option value="trend" selected>趋势参考</option>
               <option value="balanced">均衡生成</option>
               <option value="random">随机生成</option>
               <option value="data">数据参考</option>
@@ -117,18 +118,21 @@
         </section>
       </section>
 
-      <section class="support-dock" aria-label="往期分析和赞赏">
-        <section class="panel history-panel">
-          <div class="section-heading">
-            <span>往期分析</span>
-            <strong id="history-count">0 组</strong>
-          </div>
-          <div id="history-list" class="history-list">
-            <p class="muted">生成后的号码会保存在本次浏览记录中。</p>
-          </div>
-          <p class="fine-print">记录仅保存在本机浏览器，仅供数据分析，不构成中奖预测。</p>
-        </section>
+      <section class="panel arena-panel" aria-label="策略擂台">
+        <div class="section-heading">
+          <span>策略擂台</span>
+          <strong>5 策略 · 每策略 5 注</strong>
+        </div>
+        <div class="segmented" role="group" aria-label="选择策略擂台彩种">
+          <button class="segment is-active" data-arena-type="ssq" type="button">双色球</button>
+          <button class="segment" data-arena-type="dlt" type="button">大乐透</button>
+        </div>
+        <div id="arena-list" class="arena-list">
+          <p class="muted">正在加载策略擂台数据...</p>
+        </div>
+      </section>
 
+      <section class="support-dock" aria-label="赞赏">
         <section class="panel appreciation-panel">
           <div class="section-heading">
             <span>赞赏支持</span>
@@ -160,6 +164,6 @@
       </section>
     </main>
 
-    <script type="module" src="app.js?v=20260609-mobile-polish"></script>
+    <script type="module" src="app.js?v=20260614-arena-date"></script>
   </body>
 </html>

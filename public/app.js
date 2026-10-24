@@ -1,22 +1,24 @@
-import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260609-mobile-polish";
-import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260609-mobile-polish";
-import { createEntitlementState } from "./src/entitlements.mjs?v=20260609-mobile-polish";
-import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260609-mobile-polish";
-import { generateTicket } from "./src/numberGenerator.mjs?v=20260609-mobile-polish";
-import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260609-mobile-polish";
-import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260609-mobile-polish";
-import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260609-mobile-polish";
-import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260609-mobile-polish";
-import { parseDltCsv } from "./src/dltHistory.mjs?v=20260609-mobile-polish";
-import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260609-mobile-polish";
-import { createSimulationRecord, summarizeSimulationRecords } from "./src/simulationTracker.mjs?v=20260609-mobile-polish";
-import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260609-mobile-polish";
+import { APPRECIATION_NOTICE, REQUIRED_NOTICES } from "./src/compliance.mjs?v=20260614-arena-date";
+import { analyzeDraws, getLatestDraw } from "./src/drawAnalysis.mjs?v=20260614-arena-date";
+import { createEntitlementState } from "./src/entitlements.mjs?v=20260614-arena-date";
+import { formatTicket, getLotteryType } from "./src/lotteryCatalog.mjs?v=20260614-arena-date";
+import { generateTicket } from "./src/numberGenerator.mjs?v=20260614-arena-date";
+import { getPrizeRuleSummary } from "./src/prizeRules.mjs?v=20260614-arena-date";
+import { getRedeemableDraws } from "./src/redeemableDraws.mjs?v=20260614-arena-date";
+import { buildTierWeightedTheory } from "./src/recommendationTheory.mjs?v=20260614-arena-date";
+import { SAMPLE_DRAWS } from "./src/sampleDraws.mjs?v=20260614-arena-date";
+import { parseDltCsv } from "./src/dltHistory.mjs?v=20260614-arena-date";
+import { parseSsqCsv } from "./src/ssqHistory.mjs?v=20260614-arena-date";
+import { createSimulationRecord } from "./src/simulationTracker.mjs?v=20260614-arena-date";
+import { checkTicketLinesByIssue } from "./src/ticketCheck.mjs?v=20260614-arena-date";
+import { parseArenaCsv, summarizeArena } from "./src/strategyArena.mjs?v=20260614-arena-date";
 
 const today = new Date().toISOString().slice(0, 10);
 const state = {
   typeId: "ssq",
   analysisTypeId: "ssq",
-  strategy: "balanced",
+  arenaTypeId: "ssq",
+  strategy: "trend",
   generateCount: 5,
   entitlement: loadEntitlement(),
   history: loadHistory(),
@@ -42,6 +44,10 @@ const state = {
     dlt: false,
   },
   draws: SAMPLE_DRAWS,
+  arenaEntries: [],
+  arenaNotice: "正在加载策略擂台数据...",
+  arenaCopyStatus: {},
+  arenaVisibleCount: 5,
   dataNotice: {
     dlt: "正在加载大乐透历史开奖数据...",
     ssq: "正在加载双色球历史开奖数据...",
@@ -61,8 +67,8 @@ const elements = {
   latestDraw: document.querySelector("#latest-draw"),
   analysis: document.querySelector("#analysis-summary"),
   redeemableDraws: document.querySelector("#redeemable-draw-list"),
-  historyCount: document.querySelector("#history-count"),
-  history: document.querySelector("#history-list"),
+  arenaTypeButtons: [...document.querySelectorAll("[data-arena-type]")],
+  arenaList: document.querySelector("#arena-list"),
   checkTypeButtons: [...document.querySelectorAll("[data-check-type]")],
   checkIssue: document.querySelector("#ticket-issue-select"),
   checkFields: document.querySelector("#ticket-check-fields"),
@@ -93,6 +99,14 @@ function initialize() {
     button.addEventListener("click", () => {
       state.analysisTypeId = button.dataset.analysisType;
       renderAnalysis();
+    });
+  });
+
+  elements.arenaTypeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.arenaTypeId = button.dataset.arenaType;
+      state.arenaVisibleCount = 5;
+      renderArena();
     });
   });
 
@@ -152,6 +166,22 @@ function initialize() {
       state.appreciationMethod = button.dataset.appreciationMethod;
       renderAppreciation();
     });
+  });
+
+  elements.arenaList.addEventListener("click", (event) => {
+    const copyButton = event.target.closest("[data-arena-copy]");
+    if (copyButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyArenaStrategy(copyButton.dataset.arenaCopy);
+      return;
+    }
+    const moreButton = event.target.closest("[data-arena-more]");
+    if (moreButton) {
+      event.preventDefault();
+      state.arenaVisibleCount += 5;
+      renderArena();
+    }
   });
 
   elements.ticket.addEventListener("click", (event) => {
@@ -237,14 +267,39 @@ async function loadHistoricalDraws() {
 
   state.draws = [...loadedDraws, ...fallbackDraws];
   render();
+  await loadArenaEntries();
+}
+
+async function loadArenaEntries() {
+  const entries = [];
+
+  for (const path of ["data/ssq-arena.csv", "data/dlt-arena.csv"]) {
+    try {
+      const response = await fetch(withCacheBuster(path), { cache: "no-store" });
+      if (!response.ok) throw new Error(`${path} request failed: ${response.status}`);
+      entries.push(...parseArenaCsv(await response.text()));
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+
+  state.arenaEntries = entries;
+  state.arenaNotice = entries.length ? "" : "暂无策略擂台数据，等待下一次开奖后自动生成。";
+  renderArena();
 }
 
 async function loadCsvDraws(path, parser) {
-  const response = await fetch(path, { cache: "no-store" });
+  const response = await fetch(withCacheBuster(path), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`${path} request failed: ${response.status}`);
   }
   return parser(await response.text());
+}
+
+// 给数据请求拼接时间戳，绕过 GitHub Pages CDN（Fastly）边缘缓存，确保拉到最新 CSV
+function withCacheBuster(path) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}t=${Date.now()}`;
 }
 
 function render(latestGenerated = null) {
@@ -257,7 +312,7 @@ function render(latestGenerated = null) {
   });
 
   renderAnalysis();
-  renderHistory();
+  renderArena();
   renderTicketCheck();
   renderAppreciation();
 
@@ -279,10 +334,6 @@ function renderAnalysis() {
   const redeemableDraws = getRedeemableDraws(typeDraws, new Date());
   const latest = getSelectedDraw(state.analysisTypeId, redeemableDraws, analysis.latest);
   const theory = buildTierWeightedTheory({ typeId: state.analysisTypeId, draws: typeDraws });
-  const simulationSummary = summarizeSimulationRecords(
-    state.analysisTypeId,
-    state.history.map((item) => item.simulation).filter(Boolean),
-  );
 
   elements.analysisTypeButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.analysisType === state.analysisTypeId);
@@ -312,49 +363,161 @@ function renderAnalysis() {
         <div class="stat"><b>奇偶累计</b><span>${analysis.parity[firstGroup].odd}:${analysis.parity[firstGroup].even}</span></div>
       </div>
       ${renderTheorySummary(theory)}
-      ${renderSimulationSummary(simulationSummary, type)}
     </details>
   `;
   elements.redeemableDraws.innerHTML = renderRedeemableDraws(state.analysisTypeId, redeemableDraws, latest);
 }
 
-function renderHistory() {
-  elements.historyCount.textContent = `${state.history.length} 组`;
-  elements.history.innerHTML = state.history.length
-    ? `<ol class="history-list-items">${state.history.slice(0, 1).map(renderHistoryRecord).join("")}</ol>`
-    : `<p class="muted">生成后的号码会保存在本次浏览记录中。</p>`;
+function renderArena() {
+  elements.arenaTypeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.arenaType === state.arenaTypeId);
+  });
+
+  const summary = summarizeArena(state.arenaTypeId, state.arenaEntries);
+
+  if (!summary.length) {
+    elements.arenaList.innerHTML = `<p class="muted">${escapeHtml(state.arenaNotice || "暂无策略擂台数据。")}</p>`;
+    return;
+  }
+
+  const visibleCount = Math.min(state.arenaVisibleCount, summary.length);
+  const visible = summary.slice(0, visibleCount);
+  const hasMore = visibleCount < summary.length;
+
+  const moreButton = hasMore
+    ? `<button class="arena-more" type="button" data-arena-more aria-label="加载更早 5 期">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 16.5 5.5 10l1.4-1.4L12 13.7l5.1-5.1 1.4 1.4z"/></svg>
+      </button>`
+    : "";
+
+  elements.arenaList.innerHTML = `${visible.map(renderArenaIssue).join("")}${moreButton}`;
 }
 
-function renderHistoryRecord(item) {
-  const type = getLotteryType(item.typeId);
-  const simulation = item.simulation?.evaluation;
-  const simulationText = simulation
-    ? `${simulation.tierName} · ${simulation.matchText}`
-    : "待复盘";
+// 双色球开奖：周二(2)/四(4)/日(0)；大乐透开奖：周一(1)/三(3)/六(6)
+const ARENA_DRAW_WEEKDAYS = {
+  ssq: [0, 2, 4],
+  dlt: [1, 3, 6],
+};
+
+// 根据该彩种最新一期开奖日期，推算下一个开奖日（返回 YYYY-MM-DD）
+function predictNextDrawDate(typeId) {
+  const weekdays = ARENA_DRAW_WEEKDAYS[typeId];
+  if (!weekdays) return "";
+
+  const latestDraw = getLatestDraw(state.draws, typeId);
+  if (!latestDraw || !latestDraw.date) return "";
+
+  const base = new Date(`${latestDraw.date}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return "";
+
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const candidate = new Date(base);
+    candidate.setDate(base.getDate() + offset);
+    if (weekdays.includes(candidate.getDay())) {
+      const y = candidate.getFullYear();
+      const m = String(candidate.getMonth() + 1).padStart(2, "0");
+      const d = String(candidate.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return "";
+}
+
+function renderArenaIssue(issueSummary) {
+  const type = getLotteryType(issueSummary.typeId);
+  const statusText = issueSummary.evaluated ? "已开奖复盘" : "待开奖";
+
+  // 待开奖 → 直接平铺；已归档 → 期号折叠
+  if (!issueSummary.evaluated) {
+    const drawDate = predictNextDrawDate(issueSummary.typeId);
+    const statusLabel = drawDate ? `${drawDate} 开奖` : statusText;
+    return `
+      <article class="arena-issue arena-issue--pending">
+        <header class="arena-issue__head">
+          <strong>${escapeHtml(type.shortName)} ${escapeHtml(issueSummary.issue)} 期</strong>
+          <span class="arena-issue__status">${escapeHtml(statusLabel)}</span>
+        </header>
+        <div class="arena-strategies">
+          ${issueSummary.strategies.map((strategy) => renderArenaStrategyDetail(issueSummary.typeId, issueSummary.issue, strategy, false)).join("")}
+        </div>
+      </article>
+    `;
+  }
+
+  const totalYuan = issueSummary.strategies.reduce((sum, strategy) => sum + (strategy.totalYuan || 0), 0);
+  const hasFloating = issueSummary.strategies.some((strategy) => strategy.hasFloating);
+  const totalText = hasFloating
+    ? totalYuan > 0
+      ? `合计 ${totalYuan} 元 + 浮动`
+      : "含浮动奖金"
+    : totalYuan > 0
+      ? `合计 ${totalYuan} 元`
+      : "未中奖";
+  const totalClass = totalYuan > 0 || hasFloating ? " arena-issue__total--hit" : "";
 
   return `
-    <li class="history-record">
-      <div class="history-record__meta">
-        <div>
-          <strong>${escapeHtml(type.shortName)} · ${labelStrategy(item.strategy)}</strong>
-          <span>${escapeHtml(item.createdAt ?? "")}</span>
+    <details class="arena-issue arena-issue--archive">
+      <summary class="arena-issue__summary">
+        <div class="arena-issue__head">
+          <strong>${escapeHtml(type.shortName)} ${escapeHtml(issueSummary.issue)} 期</strong>
+          <span class="arena-issue__total${totalClass}">${escapeHtml(totalText)}</span>
+          <span class="arena-issue__status">${escapeHtml(statusText)}</span>
         </div>
-        <em>${escapeHtml(simulationText)}</em>
+      </summary>
+      <div class="arena-strategies">
+        ${issueSummary.strategies.map((strategy) => renderArenaStrategyDetail(issueSummary.typeId, issueSummary.issue, strategy, false)).join("")}
       </div>
-      <div class="history-record__balls">
-        ${renderBalls(formatTicket(item.typeId, item.ticket), type)}
-      </div>
-      <details class="compact-details">
-        <summary class="detail-summary">查看生成理由和复盘</summary>
-        <p>${escapeHtml(item.explanation.summary)}</p>
-        <ul class="compact-list">
-          ${item.explanation.items.map((detail) => `<li>${escapeHtml(detail)}</li>`).join("")}
-        </ul>
-        ${item.simulation ? renderSimulation(item.simulation, false) : ""}
-        <p class="fine-print">${escapeHtml(formatTicketText(item.typeId, item.ticket))}</p>
-      </details>
-    </li>
+    </details>
   `;
+}
+
+function renderArenaStrategyDetail(typeId, issue, strategy, openByDefault = false) {
+  const type = getLotteryType(typeId);
+  const lines = strategy.lines
+    .map((entry) => {
+      const formatted = formatTicket(typeId, entry.ticket);
+      const prizeText = entry.evaluated
+        ? `${escapeHtml(entry.tierName)} · ${escapeHtml(formatArenaLinePrize(entry))}`
+        : "待开奖";
+      const hitClass = entry.evaluated && entry.tier > 0 ? " arena-line--hit" : "";
+      return `
+        <div class="arena-line${hitClass}">
+          <div class="arena-line__meta">
+            <b>第 ${entry.line} 注</b>
+            <span>${prizeText}</span>
+          </div>
+          ${renderBalls(formatted, type)}
+        </div>
+      `;
+    })
+    .join("");
+
+  const copyKey = `${typeId}-${issue}-${strategy.strategy}`;
+  const copyStatus = state.arenaCopyStatus[copyKey] || "";
+  const hitClass = strategy.evaluated && strategy.totalYuan > 0 ? " arena-strategy--hit" : "";
+  const openAttr = openByDefault ? " open" : "";
+
+  return `
+    <details class="arena-strategy${hitClass}"${openAttr}>
+      <summary class="arena-strategy__summary">
+        <div class="arena-strategy__head">
+          <b>${escapeHtml(strategy.label)}</b>
+          <strong>${escapeHtml(strategy.prizeText)}</strong>
+        </div>
+        <button class="ghost-action arena-copy" type="button" data-arena-copy="${escapeHtml(copyKey)}">复制本组</button>
+        ${copyStatus ? `<span class="arena-copy-status">${escapeHtml(copyStatus)}</span>` : ""}
+      </summary>
+      <div class="arena-strategy__body">
+        <div class="arena-strategy__lines">${lines}</div>
+      </div>
+    </details>
+  `;
+}
+
+function formatArenaLinePrize(entry) {
+  if (entry.prizeLabel === "未命中" || entry.tier === 0) return "未中奖";
+  if (entry.prizeLabel === "浮动奖金") return "浮动奖金";
+  return entry.prizeLabel || "未中奖";
 }
 
 function renderAppreciation() {
@@ -492,24 +655,6 @@ function renderTheorySummary(theory) {
   `;
 }
 
-function renderSimulationSummary(summary, type) {
-  const groupNames = Object.keys(type.groups);
-  const primaryLabel = type.groups[groupNames[0]].label;
-  const secondaryLabel = type.groups[groupNames[1]].label;
-  return `
-    <div class="tracking-summary">
-      <b>模拟复盘</b>
-      <div class="tracking-line">
-        <span>记录 ${summary.total} 组</span>
-        <span>命中奖级 ${summary.hitCount} 组</span>
-        <span>最佳 ${escapeHtml(summary.bestTierName)}</span>
-      </div>
-      <p>${escapeHtml(primaryLabel)}平均匹配 ${summary.averagePrimaryMatches} 个，${escapeHtml(secondaryLabel)}平均匹配 ${summary.averageSecondaryMatches} 个。</p>
-      <p class="fine-print">${escapeHtml(summary.lesson)}</p>
-    </div>
-  `;
-}
-
 function renderSimulation(record, compact = false) {
   const evaluation = record.evaluation;
   return `
@@ -580,6 +725,43 @@ async function copyGeneratedBatch() {
   }
 
   elements.ticket.innerHTML = renderGeneratedBatch(batch);
+}
+
+async function copyArenaStrategy(copyKey) {
+  const [typeId, issue, strategy] = copyKey.split("-");
+  const lines = state.arenaEntries
+    .filter((entry) => entry.type === typeId && entry.issue === issue && entry.strategy === strategy)
+    .sort((a, b) => a.line - b.line);
+  if (!lines.length) return;
+
+  const text = lines
+    .map((entry, index) => formatArenaLineForCopy(entry, index))
+    .join("\n");
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopyText(text);
+    }
+    state.arenaCopyStatus[copyKey] = "已复制";
+  } catch (error) {
+    try {
+      fallbackCopyText(text);
+      state.arenaCopyStatus[copyKey] = "已复制";
+    } catch {
+      state.arenaCopyStatus[copyKey] = "复制失败";
+    }
+  }
+
+  renderArena();
+}
+
+function formatArenaLineForCopy(entry, index) {
+  const type = getLotteryType(entry.type);
+  const formatted = formatTicket(entry.type, entry.ticket);
+  const groups = Object.keys(type.groups).map((groupName) => formatted[groupName].join(","));
+  return `${formatChineseOrdinal(index + 1)}注 ${groups.join("   ")}`;
 }
 
 function formatGeneratedBatchForCopy(batch) {
@@ -881,19 +1063,12 @@ function persist() {
 
 function labelStrategy(strategy) {
   return {
+    trend: "趋势参考",
     balanced: "均衡生成",
     random: "随机生成",
     data: "数据参考",
     theory: "分层理论模型",
   }[strategy];
-}
-
-function formatTicketText(typeId, ticket) {
-  const type = getLotteryType(typeId);
-  const formatted = formatTicket(typeId, ticket);
-  return Object.entries(type.groups)
-    .map(([groupName, rule]) => `${rule.label}:${formatted[groupName].join(" ")}`)
-    .join(" / ");
 }
 
 function registerServiceWorker() {
