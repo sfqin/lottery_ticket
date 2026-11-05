@@ -2,46 +2,114 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  parseDlt17500Text,
   parseDltCsv,
+  parseSinaDltDetailResponse,
+  parseSinaDltListResponse,
   serializeDltCsv,
   validateDltDraws,
 } from "../src/dltHistory.mjs";
 
+const sinaListResponse = {
+  result: {
+    status: { code: 0, msg: "success" },
+    pagination: { totalPage: 98 },
+    data: [
+      {
+        issueNo: "26118",
+        openTime: "2026-10-17 21:25:00",
+        redResults: ["02", "09", "21", "26", "32"],
+        blueResults: ["06", "12"],
+        status: "1",
+      },
+      {
+        issueNo: "26117",
+        openTime: "2026-10-14 21:25:00",
+        redResults: ["04", "13", "19", "29", "31"],
+        blueResults: ["02", "12"],
+        status: "1",
+      },
+    ],
+  },
+};
+
+const sinaDetailResponse = {
+  result: {
+    status: { code: 0, msg: "success" },
+    data: {
+      issueNo: "26118",
+      openTime: "2026-10-17 21:25:00",
+      redResults: ["02", "09", "21", "26", "32"],
+      blueResults: ["06", "12"],
+      saleMoney: "316189166",
+      poolMoney: "796723787.40",
+      prizeList: [
+        { prizeDesc: "一等奖", prizeCount: "2" },
+        { prizeDesc: "追加一等奖", prizeCount: "0" },
+        { prizeDesc: "二等奖", prizeCount: "96" },
+      ],
+      status: "1",
+    },
+  },
+};
+
 describe("DLT history import", () => {
-  it("parses 17500 plain text rows", () => {
-    const text = [
-      "07001 2007-05-30 22 24 29 31 35 04 11 - - - - - - - 17086781 89168335 2 5000000 8 136558 9 24466 50 3000 682 500 2847 200 39943 10 443014 5 0 0 1 3000000 1 81934 1 14679 1049664 11075 60",
-      "26061 2026-06-03 10 12 26 31 35 02 12 26 31 10 35 12 12 02 354547009 807705563 4 10000000 114 160534 888 5000 15220 300 59457 150 791901 15 8645244 5 0 0 0 0 0 0 30 128427 0 0 0 0 0",
-    ].join("\n");
+  it("parses Sina lottery history list responses", () => {
+    const parsed = parseSinaDltListResponse(sinaListResponse);
 
-    const draws = parseDlt17500Text(text);
-
-    assert.equal(draws.length, 2);
-    assert.deepEqual(draws[0], {
+    assert.equal(parsed.totalPages, 98);
+    assert.deepEqual(parsed.draws[0], {
       type: "dlt",
-      issue: "07001",
-      date: "2007-05-30",
-      front: [22, 24, 29, 31, 35],
-      back: [4, 11],
-      sales: 17086781,
-      pool: 89168335,
-      firstPrizeCount: 2,
-      secondPrizeCount: 8,
-      source: "17500",
+      issue: "26118",
+      date: "2026-10-17",
+      front: [2, 9, 21, 26, 32],
+      back: [6, 12],
+      sales: null,
+      pool: null,
+      firstPrizeCount: null,
+      secondPrizeCount: null,
+      source: "sina",
     });
-    assert.deepEqual(draws[1].front, [10, 12, 26, 31, 35]);
-    assert.deepEqual(draws[1].back, [2, 12]);
-    assert.equal(draws[1].sales, 354547009);
-    assert.equal(draws[1].pool, 807705563);
-    assert.equal(draws[1].firstPrizeCount, 4);
-    assert.equal(draws[1].secondPrizeCount, 114);
+  });
+
+  it("parses Sina lottery detail responses with prize fields", () => {
+    assert.deepEqual(parseSinaDltDetailResponse(sinaDetailResponse), {
+      type: "dlt",
+      issue: "26118",
+      date: "2026-10-17",
+      front: [2, 9, 21, 26, 32],
+      back: [6, 12],
+      sales: 316189166,
+      pool: 796723787.4,
+      firstPrizeCount: 2,
+      secondPrizeCount: 96,
+      source: "sina",
+    });
+  });
+
+  it("rejects failed or malformed Sina lottery responses", () => {
+    assert.throws(
+      () => parseSinaDltListResponse({ result: { status: { code: 1, msg: "处理失败" } } }),
+      /处理失败/,
+    );
+    assert.throws(
+      () =>
+        parseSinaDltListResponse({
+          result: {
+            status: { code: 0, msg: "success" },
+            pagination: { totalPage: 1 },
+            data: [{ issueNo: "26118", openTime: "2026-10-17", redResults: ["02"] }],
+          },
+        }),
+      /invalid DLT result/i,
+    );
+    assert.throws(
+      () => parseSinaDltListResponse({ result: { status: { code: 0 } } }),
+      /invalid history page/i,
+    );
   });
 
   it("serializes and parses CSV without losing draw fields", () => {
-    const draws = parseDlt17500Text(
-      "26061 2026-06-03 10 12 26 31 35 02 12 26 31 10 35 12 12 02 354547009 807705563 4 10000000 114 160534 888 5000 15220 300 59457 150 791901 15 8645244 5 0 0 0 0 0 0 30 128427 0 0 0 0 0",
-    );
+    const draws = parseSinaDltListResponse(sinaListResponse).draws;
 
     const csv = serializeDltCsv(draws);
     const parsed = parseDltCsv(csv);
@@ -51,9 +119,7 @@ describe("DLT history import", () => {
   });
 
   it("validates draw shape, issue uniqueness, and ticket legality", () => {
-    const draws = parseDlt17500Text(
-      "26061 2026-06-03 10 12 26 31 35 02 12 26 31 10 35 12 12 02 354547009 807705563 4 10000000 114 160534 888 5000 15220 300 59457 150 791901 15 8645244 5 0 0 0 0 0 0 30 128427 0 0 0 0 0",
-    );
+    const draws = parseSinaDltListResponse(sinaListResponse).draws;
 
     const report = validateDltDraws(draws);
     assert.equal(report.valid, true);

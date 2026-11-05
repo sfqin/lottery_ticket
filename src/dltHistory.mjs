@@ -18,30 +18,26 @@ export const DLT_CSV_HEADER = [
   "source",
 ];
 
-export function parseDlt17500Text(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/\s+/);
-      if (parts.length < 21) {
-        throw new Error(`Invalid 17500 DLT line: ${line}`);
-      }
+export function parseSinaDltListResponse(payload) {
+  const result = parseSinaResult(payload);
+  const totalPages = Number(result.pagination?.totalPage);
+  if (!Array.isArray(result.data) || !Number.isInteger(totalPages)) {
+    throw new Error("Sina Lottery API returned an invalid history page");
+  }
 
-      return {
-        type: "dlt",
-        issue: parts[0],
-        date: parts[1],
-        front: parts.slice(2, 7).map(Number),
-        back: parts.slice(7, 9).map(Number),
-        sales: parseNullableNumber(parts[16]),
-        pool: parseNullableNumber(parts[17]),
-        firstPrizeCount: parseNullableNumber(parts[18]),
-        secondPrizeCount: parseNullableNumber(parts[20]),
-        source: "17500",
-      };
-    });
+  return { totalPages, draws: result.data.map(parseSinaDltDraw) };
+}
+
+export function parseSinaDltDetailResponse(payload) {
+  const result = parseSinaResult(payload);
+  if (!result.data || Array.isArray(result.data)) {
+    throw new Error("Sina Lottery API returned invalid DLT detail");
+  }
+  return parseSinaDltDraw(result.data);
+}
+
+export function dltDrawSignature(draw) {
+  return `${draw.date}|${draw.front.join(",")}|${draw.back.join(",")}`;
 }
 
 export function serializeDltCsv(draws) {
@@ -139,4 +135,45 @@ export function validateDltDraws(draws) {
 function parseNullableNumber(value) {
   const normalized = String(value ?? "").replaceAll(",", "").trim();
   return normalized === "-" || normalized === "" ? null : Number(normalized);
+}
+
+function parseSinaResult(payload) {
+  const status = payload?.result?.status;
+  if (status?.code !== 0) {
+    throw new Error(`Sina Lottery API failed: ${status?.msg ?? "unknown error"}`);
+  }
+  return payload.result;
+}
+
+function parseSinaDltDraw(row) {
+  const issue = String(row.issueNo ?? "");
+  const date = String(row.openTime ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) {
+    throw new Error(`Invalid DLT date for issue ${issue || "unknown"}`);
+  }
+
+  const front = Array.isArray(row.redResults) ? row.redResults.map(Number) : [];
+  const back = Array.isArray(row.blueResults) ? row.blueResults.map(Number) : [];
+  if (
+    front.length !== 5 ||
+    back.length !== 2 ||
+    [...front, ...back].some((number) => !Number.isInteger(number))
+  ) {
+    throw new Error(`Invalid DLT result for issue ${issue || "unknown"}`);
+  }
+
+  const prize = (description) =>
+    row.prizeList?.find((item) => String(item.prizeDesc) === description);
+  return {
+    type: "dlt",
+    issue,
+    date,
+    front,
+    back,
+    sales: parseNullableNumber(row.saleMoney),
+    pool: parseNullableNumber(row.poolMoney),
+    firstPrizeCount: parseNullableNumber(prize("一等奖")?.prizeCount),
+    secondPrizeCount: parseNullableNumber(prize("二等奖")?.prizeCount),
+    source: "sina",
+  };
 }

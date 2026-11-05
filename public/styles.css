@@ -515,6 +515,216 @@ textarea {
   margin-top: 0;
 }
 
+.arena-panel {
+  margin-top: 16px;
+}
+
+.arena-list {
+  display: grid;
+  gap: 12px;
+}
+
+.arena-issue {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #d7e0eb;
+  background: transparent;
+}
+
+.arena-issue:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.arena-issue--archive {
+  padding: 0;
+  background: transparent;
+}
+
+.arena-issue--archive .arena-issue__summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.arena-issue--archive .arena-issue__summary::-webkit-details-marker {
+  display: none;
+}
+
+.arena-issue--archive[open] .arena-issue__summary {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.arena-issue--archive .arena-strategies {
+  padding: 8px 0;
+}
+
+.arena-issue--archive .arena-issue__summary {
+  position: relative;
+}
+
+.arena-issue__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-issue__head strong {
+  font-size: 14px;
+  color: #1d2530;
+}
+
+.arena-issue__total {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #5a6b80;
+}
+
+.arena-issue__total--hit {
+  color: var(--green);
+}
+
+.arena-issue__status {
+  font-size: 12px;
+  color: #5a6b80;
+}
+
+.arena-strategies {
+  display: grid;
+  gap: 8px;
+}
+
+.arena-strategy {
+  border: 1px solid #e0e6ee;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  padding: 0 10px;
+}
+
+.arena-strategy--hit {
+  border-color: #9edcbb;
+  background: #f3fbf6;
+}
+
+.arena-strategy__summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arena-strategy__summary::-webkit-details-marker {
+  display: none;
+}
+
+.arena-strategy__head {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.arena-strategy__head b {
+  font-size: 14px;
+  color: #1d2530;
+}
+
+.arena-strategy__head strong {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.arena-strategy--hit .arena-strategy__head strong {
+  color: var(--green);
+}
+
+.arena-strategy__body {
+  border-top: 1px solid #eef2f7;
+  padding: 8px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.arena-copy {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 0 12px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.arena-copy-status {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.arena-strategy__lines {
+  display: grid;
+  gap: 6px;
+}
+
+.arena-line {
+  display: grid;
+  gap: 4px;
+  padding: 6px 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.arena-line--hit {
+  background: rgba(38, 122, 87, 0.1);
+}
+
+.arena-line__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #5a6b80;
+}
+
+.arena-line .ball-row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.arena-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 12px auto 0;
+  border: 1px solid #d7e0eb;
+  border-radius: 50%;
+  background: #f6f8fb;
+  color: var(--blue);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.arena-more:hover {
+  background: #eef4ff;
+  transform: translateY(1px);
+}
+
+.arena-more:active {
+  transform: translateY(2px);
+}
+
 .appreciation-panel {
   display: grid;
   gap: 12px;
