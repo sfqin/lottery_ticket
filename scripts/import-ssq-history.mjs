@@ -1,62 +1,97 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import {
-  parseSsq17500Text,
-  parseSsqHistoryPage,
+  parseSinaSsqDetailResponse,
+  parseSinaSsqListResponse,
+  parseSsqCsv,
   serializeSsqCsv,
+  ssqDrawSignature,
   validateSsqDraws,
 } from "../src/ssqHistory.mjs";
+import {
+  collectIncrementalDraws,
+  fetchJsonFromMirrors,
+  mergeDrawHistory,
+  writeTextAtomically,
+} from "../src/historyImport.mjs";
 
-const BASE_URL = "http://kaijiang.zhcw.com/zhcw/html/ssq/list.html";
-const PAGE_URL = "http://kaijiang.zhcw.com/zhcw/inc/ssq/ssq_wqhg.jsp?pageNum=";
-const TEXT_URL = "https://data.17500.cn/ssq_asc.txt";
-const outputPath = new URL("../data/ssq-history.csv", import.meta.url);
-const source = readArg("source") ?? "17500";
+const API_URLS = [
+  "https://alpha.lottery.sina.com.cn/gateway/index/entry",
+  "https://mix.lottery.sina.com.cn/gateway/index/entry",
+];
+const headers = {
+  Accept: "application/json",
+  Referer: "https://lottery.sina.com.cn/",
+  "User-Agent": "lottery-ticket-history-updater/1.0",
+};
 
-const allDraws = source === "zhcw" ? importFromZhcw() : importFrom17500();
+const outputPath = fileURLToPath(new URL("../data/ssq-history.csv", import.meta.url));
+const existing = parseSsqCsv(readFileSync(outputPath, "utf8"));
+const existingIssues = new Set(existing.map((draw) => draw.issue));
+const candidates = await collectIncrementalDraws({
+  existingIssues,
+  fetchPage: async (pageNo) => {
+    return parseSinaSsqListResponse(
+      await fetchSinaJson({
+        cat1: "gameOpenList",
+        lottoType: "101",
+        paginationType: "1",
+        page: String(pageNo),
+        pageSize: "30",
+        dpc: "1",
+      }),
+    );
+  },
+});
 
-const uniqueDraws = [...new Map(allDraws.map((draw) => [draw.issue, draw])).values()];
-const validation = validateSsqDraws(uniqueDraws);
+const incoming = [];
+for (const candidate of candidates) {
+  if (existingIssues.has(candidate.issue)) {
+    incoming.push(candidate);
+    continue;
+  }
 
+  const draw = parseSinaSsqDetailResponse(
+    await fetchSinaJson({
+      cat1: "gameOpenInfo",
+      lottoType: "101",
+      issueNo: candidate.issue,
+      dpc: "1",
+    }),
+  );
+  if (draw.issue !== candidate.issue) {
+    throw new Error(`Sina SSQ detail issue mismatch: expected ${candidate.issue}, got ${draw.issue}`);
+  }
+  incoming.push(draw);
+}
+
+const merged = mergeDrawHistory(existing, incoming, ssqDrawSignature);
+const validation = validateSsqDraws(merged);
 if (!validation.valid) {
   throw new Error(`SSQ history validation failed:\n${validation.errors.join("\n")}`);
 }
 
-mkdirSync(dirname(outputPath.pathname), { recursive: true });
-writeFileSync(outputPath, serializeSsqCsv(uniqueDraws), "utf8");
-
+writeTextAtomically(outputPath, serializeSsqCsv(merged));
+const latest = merged.toSorted((a, b) => b.issue.localeCompare(a.issue))[0];
 console.log(
-  `Imported ${uniqueDraws.length} 双色球 draws from ${source} into ${outputPath.pathname}`,
+  `Imported ${merged.length - existing.length} new 双色球 draws; ` +
+    `${merged.length} total; latest ${latest.issue}`,
 );
 
-function fetchText(url) {
-  return execFileSync("curl", ["-fsSL", "--retry", "3", "--retry-delay", "1", url], {
-    encoding: "utf8",
-    maxBuffer: 20 * 1024 * 1024,
+function fetchSinaJson(parameters) {
+  const urls = API_URLS.map((baseUrl) => {
+    const url = new URL(baseUrl);
+    for (const [name, value] of Object.entries({
+      format: "json",
+      __caller__: "web",
+      __version__: "1.0.0",
+      __verno__: "1",
+      ...parameters,
+    })) {
+      url.searchParams.set(name, value);
+    }
+    return url;
   });
-}
-
-function importFrom17500() {
-  return parseSsq17500Text(fetchText(TEXT_URL));
-}
-
-function importFromZhcw() {
-  const firstPage = fetchText(BASE_URL);
-  const firstResult = parseSsqHistoryPage(firstPage);
-  const draws = [...firstResult.draws];
-
-  for (let page = 2; page <= firstResult.totalPages; page += 1) {
-    const html = fetchText(`${PAGE_URL}${page}`);
-    draws.push(...parseSsqHistoryPage(html).draws);
-  }
-
-  return draws;
-}
-
-function readArg(name) {
-  const prefix = `--${name}=`;
-  const arg = process.argv.find((value) => value.startsWith(prefix));
-  return arg ? arg.slice(prefix.length) : null;
+  return fetchJsonFromMirrors(urls, { headers });
 }
