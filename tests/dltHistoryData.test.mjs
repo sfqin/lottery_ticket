@@ -11,7 +11,7 @@ describe("stored DLT history data", () => {
     const validation = validateDltDraws(draws);
 
     assert.equal(validation.valid, true);
-    assert.ok(draws.length >= 2879);
+    assert.ok(draws.length >= 2936);
     assert.ok(draws.some((draw) => draw.issue === "26061"));
 
     const latestKnown = draws.find((draw) => draw.issue === "26062");
@@ -19,5 +19,11 @@ describe("stored DLT history data", () => {
     assert.equal(latestKnown.date, "2026-06-06");
     assert.deepEqual(latestKnown.front, [7, 15, 20, 24, 29]);
     assert.deepEqual(latestKnown.back, [4, 10]);
+
+    const latestImported = draws.find((draw) => draw.issue === "26118");
+    assert.ok(latestImported);
+    assert.equal(latestImported.date, "2026-10-17");
+    assert.deepEqual(latestImported.front, [2, 9, 21, 26, 32]);
+    assert.deepEqual(latestImported.back, [6, 12]);
   });
 });

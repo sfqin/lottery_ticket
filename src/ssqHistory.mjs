@@ -17,41 +17,26 @@ export const SSQ_CSV_HEADER = [
   "source",
 ];
 
-export function parseSsqHistoryPage(html) {
-  const totalPages = parseTotalPages(html);
-  const rows = [...html.matchAll(/<tr[\s\S]*?<\/tr>/gi)]
-    .map((match) => match[0])
-    .filter((row) => /<em[^>]*class="rr"/i.test(row));
+export function parseSinaSsqListResponse(payload) {
+  const result = parseSinaResult(payload);
+  const totalPages = Number(result.pagination?.totalPage);
+  if (!Array.isArray(result.data) || !Number.isInteger(totalPages)) {
+    throw new Error("Sina Lottery API returned an invalid history page");
+  }
 
-  return {
-    totalPages,
-    draws: rows.map(parseSsqRow).filter(Boolean),
-  };
+  return { totalPages, draws: result.data.map(parseSinaSsqDraw) };
 }
 
-export function parseSsq17500Text(text) {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/\s+/);
-      if (parts.length < 21) {
-        throw new Error(`Invalid 17500 SSQ line: ${line}`);
-      }
+export function parseSinaSsqDetailResponse(payload) {
+  const result = parseSinaResult(payload);
+  if (!result.data || Array.isArray(result.data)) {
+    throw new Error("Sina Lottery API returned invalid SSQ detail");
+  }
+  return parseSinaSsqDraw(result.data);
+}
 
-      return {
-        type: "ssq",
-        issue: parts[0],
-        date: parts[1],
-        red: parts.slice(2, 8).map(Number),
-        blue: [Number(parts[8])],
-        sales: parseNullableNumber(parts[15]),
-        firstPrizeCount: parseNullableNumber(parts[17]),
-        secondPrizeCount: parseNullableNumber(parts[19]),
-        source: "17500",
-      };
-    });
+export function ssqDrawSignature(draw) {
+  return `${draw.date}|${draw.red.join(",")}|${draw.blue.join(",")}`;
 }
 
 export function serializeSsqCsv(draws) {
@@ -143,46 +128,47 @@ export function validateSsqDraws(draws) {
   return { valid: errors.length === 0, errors };
 }
 
-function parseSsqRow(row) {
-  const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1]);
-  if (cells.length < 6) {
-    return null;
+function parseNullableNumber(value) {
+  const normalized = String(value ?? "").replaceAll(",", "").trim();
+  return normalized ? Number(normalized) : null;
+}
+
+function parseSinaResult(payload) {
+  const status = payload?.result?.status;
+  if (status?.code !== 0) {
+    throw new Error(`Sina Lottery API failed: ${status?.msg ?? "unknown error"}`);
+  }
+  return payload.result;
+}
+
+function parseSinaSsqDraw(row) {
+  const issue = String(row.issueNo ?? "");
+  const date = String(row.openTime ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (!date) {
+    throw new Error(`Invalid SSQ date for issue ${issue || "unknown"}`);
   }
 
-  const date = cleanText(cells[0]);
-  const issue = cleanText(cells[1]);
-  const reds = [...cells[2].matchAll(/<em[^>]*class="rr"[^>]*>(\d{2})<\/em>/gi)].map((match) =>
-    Number(match[1]),
-  );
-  const allNumbers = [...cells[2].matchAll(/<em[^>]*>(\d{2})<\/em>/gi)].map((match) => Number(match[1]));
-  const blue = allNumbers.at(-1);
+  const red = Array.isArray(row.redResults) ? row.redResults.map(Number) : [];
+  const blue = Array.isArray(row.blueResults) ? row.blueResults.map(Number) : [];
+  if (
+    red.length !== 6 ||
+    blue.length !== 1 ||
+    [...red, ...blue].some((number) => !Number.isInteger(number))
+  ) {
+    throw new Error(`Invalid SSQ result for issue ${issue || "unknown"}`);
+  }
 
+  const prize = (description) =>
+    row.prizeList?.find((item) => String(item.prizeDesc) === description);
   return {
     type: "ssq",
     issue,
     date,
-    red: reds,
-    blue: [blue],
-    sales: parseNullableNumber(cleanText(cells[3])),
-    firstPrizeCount: parseNullableNumber(cleanText(cells[4])),
-    secondPrizeCount: parseNullableNumber(cleanText(cells[5])),
-    source: "zhcw",
+    red,
+    blue,
+    sales: parseNullableNumber(row.saleMoney),
+    firstPrizeCount: parseNullableNumber(prize("一等奖")?.prizeCount),
+    secondPrizeCount: parseNullableNumber(prize("二等奖")?.prizeCount),
+    source: "sina",
   };
-}
-
-function parseTotalPages(html) {
-  const match = html.match(/共\s*<strong>\s*(\d+)\s*<\/strong>\s*页/i);
-  return match ? Number(match[1]) : 1;
-}
-
-function cleanText(html) {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .trim();
-}
-
-function parseNullableNumber(value) {
-  const normalized = String(value ?? "").replaceAll(",", "").trim();
-  return normalized ? Number(normalized) : null;
 }

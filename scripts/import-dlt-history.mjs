@@ -1,34 +1,97 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import {
-  parseDlt17500Text,
+  dltDrawSignature,
+  parseDltCsv,
+  parseSinaDltDetailResponse,
+  parseSinaDltListResponse,
   serializeDltCsv,
   validateDltDraws,
 } from "../src/dltHistory.mjs";
+import {
+  collectIncrementalDraws,
+  fetchJsonFromMirrors,
+  mergeDrawHistory,
+  writeTextAtomically,
+} from "../src/historyImport.mjs";
 
-const TEXT_URL = "https://data.17500.cn/dlt_asc.txt";
-const outputPath = new URL("../data/dlt-history.csv", import.meta.url);
+const API_URLS = [
+  "https://alpha.lottery.sina.com.cn/gateway/index/entry",
+  "https://mix.lottery.sina.com.cn/gateway/index/entry",
+];
+const headers = {
+  Accept: "application/json",
+  Referer: "https://lottery.sina.com.cn/",
+  "User-Agent": "lottery-ticket-history-updater/1.0",
+};
 
-const draws = parseDlt17500Text(fetchText(TEXT_URL));
-const uniqueDraws = [...new Map(draws.map((draw) => [draw.issue, draw])).values()];
-const validation = validateDltDraws(uniqueDraws);
+const outputPath = fileURLToPath(new URL("../data/dlt-history.csv", import.meta.url));
+const existing = parseDltCsv(readFileSync(outputPath, "utf8"));
+const existingIssues = new Set(existing.map((draw) => draw.issue));
+const candidates = await collectIncrementalDraws({
+  existingIssues,
+  fetchPage: async (pageNo) => {
+    return parseSinaDltListResponse(
+      await fetchSinaJson({
+        cat1: "gameOpenList",
+        lottoType: "201",
+        paginationType: "1",
+        page: String(pageNo),
+        pageSize: "30",
+        dpc: "1",
+      }),
+    );
+  },
+});
 
+const incoming = [];
+for (const candidate of candidates) {
+  if (existingIssues.has(candidate.issue)) {
+    incoming.push(candidate);
+    continue;
+  }
+
+  const draw = parseSinaDltDetailResponse(
+    await fetchSinaJson({
+      cat1: "gameOpenInfo",
+      lottoType: "201",
+      issueNo: candidate.issue,
+      dpc: "1",
+    }),
+  );
+  if (draw.issue !== candidate.issue) {
+    throw new Error(`Sina DLT detail issue mismatch: expected ${candidate.issue}, got ${draw.issue}`);
+  }
+  incoming.push(draw);
+}
+
+const merged = mergeDrawHistory(existing, incoming, dltDrawSignature);
+const validation = validateDltDraws(merged);
 if (!validation.valid) {
   throw new Error(`DLT history validation failed:\n${validation.errors.join("\n")}`);
 }
 
-mkdirSync(dirname(outputPath.pathname), { recursive: true });
-writeFileSync(outputPath, serializeDltCsv(uniqueDraws), "utf8");
-
+writeTextAtomically(outputPath, serializeDltCsv(merged));
+const latest = merged.toSorted((a, b) => b.issue.localeCompare(a.issue))[0];
 console.log(
-  `Imported ${uniqueDraws.length} 大乐透 draws from 17500 into ${outputPath.pathname}`,
+  `Imported ${merged.length - existing.length} new 大乐透 draws; ` +
+    `${merged.length} total; latest ${latest.issue}`,
 );
 
-function fetchText(url) {
-  return execFileSync("curl", ["-fsSL", "--retry", "3", "--retry-delay", "1", url], {
-    encoding: "utf8",
-    maxBuffer: 20 * 1024 * 1024,
+function fetchSinaJson(parameters) {
+  const urls = API_URLS.map((baseUrl) => {
+    const url = new URL(baseUrl);
+    for (const [name, value] of Object.entries({
+      format: "json",
+      __caller__: "web",
+      __version__: "1.0.0",
+      __verno__: "1",
+      ...parameters,
+    })) {
+      url.searchParams.set(name, value);
+    }
+    return url;
   });
+  return fetchJsonFromMirrors(urls, { headers });
 }

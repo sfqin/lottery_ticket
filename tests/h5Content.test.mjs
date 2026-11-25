@@ -120,25 +120,29 @@ describe("H5 content", () => {
     assert.match(app, /60 个自然日/);
   });
 
-  it("renders generated history as a compact analysis list", async () => {
+  it("renders the strategy arena overview with expandable per-strategy detail", async () => {
     const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
       readPublicFile("styles.css"),
     ]);
 
-    assert.match(html, /仅供数据分析/);
-    assert.match(html, /往期分析/);
-    assert.match(html, /support-dock/);
-    assert.match(app, /renderHistoryRecord/);
-    assert.match(app, /slice\(0, 1\)/);
-    assert.match(app, /查看生成理由和复盘/);
-    assert.match(app, /history-record__balls/);
+    assert.match(html, /策略擂台/);
+    assert.match(html, /5 策略 · 每策略 5 注/);
+    assert.match(html, /data-arena-type="ssq"/);
+    assert.match(html, /data-arena-type="dlt"/);
+    assert.match(html, /id="arena-list"/);
+    assert.doesNotMatch(html, /往期分析/);
+    assert.match(app, /renderArena/);
+    assert.match(app, /summarizeArena/);
+    assert.match(app, /renderArenaStrategyDetail/);
+    assert.match(app, /loadArenaEntries/);
+    assert.doesNotMatch(app, /renderHistoryRecord/);
     assert.match(css, /generated-batch/);
     assert.match(css, /support-dock/);
+    assert.match(css, /arena-issue__total/);
     assert.match(css, /appreciation-code--primary/);
     assert.match(css, /appreciation-methods/);
-    assert.match(css, /flex-wrap: nowrap/);
   });
 
   it("uses a compact high-frequency layout with manual check first and five default picks", async () => {
@@ -165,6 +169,19 @@ describe("H5 content", () => {
     assert.match(css, /draw-selector-field/);
   });
 
+  it("defaults number generation to the latest-100-draw trend reference mode", async () => {
+    const [html, app, generator] = await Promise.all([
+      readPublicFile("index.html"),
+      readPublicFile("app.js"),
+      readRepoFile("src/numberGenerator.mjs"),
+    ]);
+
+    assert.match(html, /<option value="trend" selected>趋势参考<\/option>/);
+    assert.match(app, /strategy: "trend"/);
+    assert.match(app, /trend: "趋势参考"/);
+    assert.match(generator, /最近 100 期/);
+  });
+
   it("supports copying the current generated batch in a compact text format", async () => {
     const [html, app, css] = await Promise.all([
       readPublicFile("index.html"),
@@ -186,12 +203,14 @@ describe("H5 content", () => {
   });
 
   it("declares PWA install assets and scheduled data update workflow", async () => {
-    const [html, app, manifest, serviceWorker, workflow] = await Promise.all([
+    const [html, app, manifest, serviceWorker, workflow, ssqImporter, dltImporter] = await Promise.all([
       readPublicFile("index.html"),
       readPublicFile("app.js"),
       readPublicFile("manifest.webmanifest"),
       readPublicFile("service-worker.js"),
       readRepoFile(".github/workflows/update-lottery-data.yml"),
+      readRepoFile("scripts/import-ssq-history.mjs"),
+      readRepoFile("scripts/import-dlt-history.mjs"),
     ]);
 
     const parsedManifest = JSON.parse(manifest);
@@ -204,5 +223,11 @@ describe("H5 content", () => {
     assert.match(workflow, /cron:/);
     assert.match(workflow, /npm run import:ssq/);
     assert.match(workflow, /npm run import:dlt/);
+    assert.match(ssqImporter, /alpha\.lottery\.sina\.com\.cn/);
+    assert.match(ssqImporter, /mix\.lottery\.sina\.com\.cn/);
+    assert.match(dltImporter, /alpha\.lottery\.sina\.com\.cn/);
+    assert.match(dltImporter, /mix\.lottery\.sina\.com\.cn/);
+    assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /17500/);
+    assert.doesNotMatch(`${ssqImporter}\n${dltImporter}`, /execFileSync|curl/);
   });
 });
